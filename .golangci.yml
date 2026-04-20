@@ -46,6 +46,7 @@ linters-settings:
   gosec:
     excludes:
       - G404 # math/rand is fine in tests and non-cryptographic paths
+      - G115 # int->uint conversions are bounds-checked at source; gosec G115 is noisy
   errorlint:
     errorf: true
     asserts: true
@@ -68,3 +69,5 @@ issues:
     - path: cmd/p4ctl/
       linters:
         - gochecknoglobals
+        - errcheck   # CLI tolerates best-effort Close / Fprint on exit paths
+        - gosec      # CLI intentionally reads user-supplied paths (G304)

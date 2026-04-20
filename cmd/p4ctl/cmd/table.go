@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -167,6 +168,9 @@ func applyMatch(b *tableentry.Builder, p *pipeline.Pipeline, table, spec string)
 		prefix, err := strconv.Atoi(parts[1])
 		if err != nil {
 			return fmt.Errorf("prefix %q: %w", parts[1], err)
+		}
+		if prefix < 0 || prefix > math.MaxInt32 {
+			return fmt.Errorf("prefix %q out of int32 range", parts[1])
 		}
 		b.Match(name, tableentry.LPM(v, int32(prefix)))
 	case strings.Contains(raw, "&"):

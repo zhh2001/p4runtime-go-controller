@@ -27,7 +27,6 @@ type Builder struct {
 	timeout   int64
 	isDefault bool
 	metadata  []byte
-	meta      map[string]any
 }
 
 type actionSpec struct {

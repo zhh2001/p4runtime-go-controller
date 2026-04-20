@@ -4,7 +4,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -90,17 +89,4 @@ var versionCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, _ []string) {
 		fmt.Fprintln(cmd.OutOrStdout(), Version)
 	},
-}
-
-// loadPipelinePath returns the absolute path to a pipeline file, honoring
-// the user's CWD.
-func loadPipelinePath(p string) string {
-	if p == "" {
-		return ""
-	}
-	abs, err := filepath.Abs(p)
-	if err != nil {
-		return p
-	}
-	return abs
 }

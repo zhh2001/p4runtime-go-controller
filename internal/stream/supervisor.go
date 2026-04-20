@@ -81,16 +81,15 @@ type PacketHandler func(msg *p4v1.StreamMessageResponse)
 // reconnect and publishes state transitions on an Events channel. Methods are
 // safe for concurrent use.
 type Supervisor struct {
-	cfg     Config
-	dial    Dialer
-	onPkt   PacketHandler
-	log     *slog.Logger
+	cfg   Config
+	dial  Dialer
+	onPkt PacketHandler
+	log   *slog.Logger
 
-	mu       sync.RWMutex
-	state    State
-	curState *p4v1.P4Runtime_StreamChannelClient // latest stream
-	primary  bool
-	lastErr  error
+	mu      sync.RWMutex
+	state   State
+	primary bool
+	lastErr error
 
 	events  chan Event
 	sendCh  chan *p4v1.StreamMessageRequest

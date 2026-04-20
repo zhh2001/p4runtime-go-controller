@@ -89,7 +89,11 @@ func Dial(ctx context.Context, addr string, opts ...Option) (*Client, error) {
 		return nil, fmt.Errorf("grpc.NewClient: %w", err)
 	}
 
-	supCtx, cancel := context.WithCancel(context.Background())
+	// The supervisor outlives the caller-supplied Dial context: the caller
+	// wants Dial to return once arbitration settles, but the supervisor must
+	// keep running until Client.Close tears it down. Deriving from
+	// context.Background is intentional.
+	supCtx, cancel := context.WithCancel(context.Background()) //nolint:contextcheck // supervisor outlives Dial ctx by design
 	rpc := p4v1.NewP4RuntimeClient(conn)
 
 	c := &Client{

@@ -270,9 +270,7 @@ func New(info *p4configv1.P4Info, deviceConfig []byte) (*Pipeline, error) {
 		ctrlPktByName:        map[string]*ControllerPacketMetadataDef{},
 		ctrlPktByID:          map[uint32]*ControllerPacketMetadataDef{},
 	}
-	if err := p.index(); err != nil {
-		return nil, err
-	}
+	p.index()
 	return p, nil
 }
 
@@ -440,7 +438,7 @@ func (p *Pipeline) PacketMetadataByID(id uint32) (*ControllerPacketMetadataDef, 
 	return c, ok
 }
 
-func (p *Pipeline) index() error {
+func (p *Pipeline) index() {
 	for _, raw := range p.info.GetActions() {
 		a := &ActionDef{
 			ID:          raw.GetPreamble().GetId(),
@@ -611,5 +609,4 @@ func (p *Pipeline) index() error {
 		p.ctrlPktByName[c.Name] = c
 		p.ctrlPktByID[c.ID] = c
 	}
-	return nil
 }

@@ -26,7 +26,7 @@ func TestNextBackoff(t *testing.T) {
 	assert.Equal(t, 2*time.Second, nextBackoff(1*time.Second, 30*time.Second))
 	assert.Equal(t, 30*time.Second, nextBackoff(20*time.Second, 30*time.Second))
 	// saturation
-	assert.Equal(t, time.Duration(30*time.Second), nextBackoff(1<<62, 30*time.Second))
+	assert.Equal(t, 30*time.Second, nextBackoff(1<<62, 30*time.Second))
 }
 
 func TestJitter(t *testing.T) {

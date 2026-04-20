@@ -29,27 +29,27 @@ const bufSize = 1024 * 1024
 type MockServer struct {
 	p4v1.UnimplementedP4RuntimeServer
 
-	Mu                    sync.Mutex
-	DeviceID              uint64
-	PrimaryElectionHigh   uint64
-	PrimaryElectionLow    uint64
-	ArbitrationEchoed     int
-	WriteRequests         []*p4v1.WriteRequest
-	LastCapabilitiesReq   *p4v1.CapabilitiesRequest
-	SetPipelineReq        *p4v1.SetForwardingPipelineConfigRequest
-	GetPipelineResp       *p4v1.GetForwardingPipelineConfigResponse
-	OverrideWriteErr      error
-	OverrideReadResp      []*p4v1.ReadResponse
-	ArbitrationRejection  *rpcstatus.Status // optional: forces a non-primary response for the first arb
+	Mu                     sync.Mutex
+	DeviceID               uint64
+	PrimaryElectionHigh    uint64
+	PrimaryElectionLow     uint64
+	ArbitrationEchoed      int
+	WriteRequests          []*p4v1.WriteRequest
+	LastCapabilitiesReq    *p4v1.CapabilitiesRequest
+	SetPipelineReq         *p4v1.SetForwardingPipelineConfigRequest
+	GetPipelineResp        *p4v1.GetForwardingPipelineConfigResponse
+	OverrideWriteErr       error
+	OverrideReadResp       []*p4v1.ReadResponse
+	ArbitrationRejection   *rpcstatus.Status // optional: forces a non-primary response for the first arb
 	SetPipelineErrByAction map[p4v1.SetForwardingPipelineConfigRequest_Action]error
-	SetPipelineAttempts   []p4v1.SetForwardingPipelineConfigRequest_Action
-	PacketsToSend         []*p4v1.StreamMessageResponse
-	RecvMu                sync.Mutex
-	LastArbitrationUpdate *p4v1.MasterArbitrationUpdate
-	ReceivedPacketOuts    []*p4v1.PacketOut
-	ReceivedDigestAcks    []*p4v1.DigestListAck
-	liveStream            p4v1.P4Runtime_StreamChannelServer
-	liveMu                sync.Mutex
+	SetPipelineAttempts    []p4v1.SetForwardingPipelineConfigRequest_Action
+	PacketsToSend          []*p4v1.StreamMessageResponse
+	RecvMu                 sync.Mutex
+	LastArbitrationUpdate  *p4v1.MasterArbitrationUpdate
+	ReceivedPacketOuts     []*p4v1.PacketOut
+	ReceivedDigestAcks     []*p4v1.DigestListAck
+	liveStream             p4v1.P4Runtime_StreamChannelServer
+	liveMu                 sync.Mutex
 }
 
 // NewMockServer returns a MockServer with default (permissive) behavior.
