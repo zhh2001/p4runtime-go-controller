@@ -1,5 +1,16 @@
 # p4runtime-go-controller
 
+[![CI](https://github.com/zhh2001/p4runtime-go-controller/actions/workflows/ci.yml/badge.svg)](https://github.com/zhh2001/p4runtime-go-controller/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/zhh2001/p4runtime-go-controller/actions/workflows/codeql.yml/badge.svg)](https://github.com/zhh2001/p4runtime-go-controller/actions/workflows/codeql.yml)
+[![govulncheck](https://github.com/zhh2001/p4runtime-go-controller/actions/workflows/govulncheck.yml/badge.svg)](https://github.com/zhh2001/p4runtime-go-controller/actions/workflows/govulncheck.yml)
+[![codecov](https://codecov.io/gh/zhh2001/p4runtime-go-controller/branch/main/graph/badge.svg)](https://codecov.io/gh/zhh2001/p4runtime-go-controller)
+[![Go Reference](https://pkg.go.dev/badge/github.com/zhh2001/p4runtime-go-controller.svg)](https://pkg.go.dev/github.com/zhh2001/p4runtime-go-controller)
+[![Go Report Card](https://goreportcard.com/badge/github.com/zhh2001/p4runtime-go-controller)](https://goreportcard.com/report/github.com/zhh2001/p4runtime-go-controller)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/zhh2001/p4runtime-go-controller)](../../go.mod)
+[![Latest Release](https://img.shields.io/github/v/release/zhh2001/p4runtime-go-controller?sort=semver)](https://github.com/zhh2001/p4runtime-go-controller/releases/latest)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](../../LICENSE)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://www.conventionalcommits.org)
+
 面向 P4Runtime 控制器的生产级 Go SDK。
 
 - 兼容任意 P4Runtime 1.3.0+ 目标设备(BMv2、Stratum、基于 Tofino 的交换机、
