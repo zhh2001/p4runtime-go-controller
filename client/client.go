@@ -93,7 +93,7 @@ func Dial(ctx context.Context, addr string, opts ...Option) (*Client, error) {
 	// wants Dial to return once arbitration settles, but the supervisor must
 	// keep running until Client.Close tears it down. Deriving from
 	// context.Background is intentional.
-	supCtx, cancel := context.WithCancel(context.Background()) //nolint:contextcheck // supervisor outlives Dial ctx by design
+	supCtx, cancel := context.WithCancel(context.Background())
 	rpc := p4v1.NewP4RuntimeClient(conn)
 
 	c := &Client{
@@ -119,7 +119,7 @@ func Dial(ctx context.Context, addr string, opts ...Option) (*Client, error) {
 	}, c.dial, c.receiveHandler)
 
 	go c.forwardEvents()
-	c.sup.Start(supCtx)
+	c.sup.Start(supCtx) //nolint:contextcheck // supervisor outlives Dial ctx by design
 
 	// Wait for either the first transition out of connecting or the deadline.
 	dialDeadline := time.NewTimer(o.arbitrationTO + 2*time.Second)
