@@ -1,0 +1,53 @@
+version: "3"
+
+tasks:
+  tidy:
+    desc: go mod tidy
+    cmds:
+      - go mod tidy
+
+  build:
+    desc: go build ./...
+    cmds:
+      - go build ./...
+
+  vet:
+    desc: go vet ./...
+    cmds:
+      - go vet ./...
+
+  lint:
+    desc: golangci-lint run
+    cmds:
+      - golangci-lint run ./...
+
+  test:
+    desc: short unit tests
+    cmds:
+      - go test -short ./...
+
+  test-race:
+    desc: unit tests with race detector
+    cmds:
+      - go test -race -short ./...
+
+  cover:
+    desc: coverage profile
+    cmds:
+      - go test -race -covermode=atomic -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out | tail -n 1
+
+  bench:
+    desc: benchmarks
+    cmds:
+      - go test -run=^$ -bench=. -benchmem ./...
+
+  vuln:
+    desc: govulncheck
+    cmds:
+      - govulncheck ./...
+
+  e2e:
+    desc: integration tests (requires BMv2)
+    cmds:
+      - go test -tags=integration -count=1 ./test/integration/...

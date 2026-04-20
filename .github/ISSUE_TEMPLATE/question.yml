@@ -1,0 +1,15 @@
+name: Question
+description: Ask a usage or design question when Discussions is not enabled yet.
+labels: [question]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Code excerpts, error messages, P4Runtime target details.

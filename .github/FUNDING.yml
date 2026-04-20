@@ -1,0 +1,17 @@
+# GitHub uses this file to render the "Sponsor" button on the repository.
+# Uncomment whichever providers you want to accept donations through once you
+# have an account set up. Leaving every line commented keeps the button
+# hidden — that is the current state.
+#
+# GitHub Sponsors (requires the account to be enrolled in the program):
+# github: [zhh2001]
+#
+# Third-party platforms:
+# ko_fi: zhh2001
+# patreon: zhh2001
+# open_collective: p4runtime-go-controller
+# liberapay: zhh2001
+# buy_me_a_coffee: zhh2001
+#
+# Custom URL (any donation page):
+# custom: ["https://example.com/sponsor"]

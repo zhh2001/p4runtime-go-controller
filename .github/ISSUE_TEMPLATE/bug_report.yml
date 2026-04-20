@@ -1,0 +1,59 @@
+name: Bug report
+description: Report a reproducible problem in the library or the p4ctl CLI.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Thanks for taking the time to file a bug. Please fill in as much of the
+        form as you can — reproducibility is the single most important factor
+        in getting a fix merged quickly.
+  - type: input
+    id: version
+    attributes:
+      label: Library / CLI version
+      description: Output of `go list -m github.com/zhh2001/p4runtime-go-controller` or `p4ctl --version`.
+      placeholder: v0.x.y
+    validations:
+      required: true
+  - type: input
+    id: go_version
+    attributes:
+      label: Go version
+      placeholder: go1.23.0 linux/amd64
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: P4Runtime target
+      description: BMv2, Stratum-bmv2, Tofino, custom, etc.
+      placeholder: BMv2 simple_switch_grpc
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Minimum code / command sequence that reproduces the issue.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Redact any sensitive data before pasting.
+      render: text

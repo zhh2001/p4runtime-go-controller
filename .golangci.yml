@@ -1,0 +1,70 @@
+run:
+  timeout: 5m
+  tests: true
+  build-tags:
+    - integration
+
+output:
+  sort-results: true
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - revive
+    - gosec
+    - bodyclose
+    - contextcheck
+    - errorlint
+    - nilerr
+    - unconvert
+    - unparam
+
+linters-settings:
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: github.com/zhh2001/p4runtime-go-controller
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+        disabled: false
+      - name: package-comments
+      - name: indent-error-flow
+      - name: var-naming
+  misspell:
+    locale: US
+  gosec:
+    excludes:
+      - G404 # math/rand is fine in tests and non-cryptographic paths
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
+
+issues:
+  exclude-use-default: false
+  max-same-issues: 0
+  max-issues-per-linter: 0
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gosec
+        - errcheck
+        - unparam
+    - path: examples/
+      linters:
+        - errcheck
+        - gosec
+    - path: cmd/p4ctl/
+      linters:
+        - gochecknoglobals

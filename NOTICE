@@ -1,0 +1,8 @@
+p4runtime-go-controller
+Copyright 2026 The p4runtime-go-controller Authors
+
+This product includes software developed by the p4runtime-go-controller project.
+
+This product includes software (Protocol Buffers / gRPC stubs) developed by
+the p4lang/p4runtime project (https://github.com/p4lang/p4runtime), licensed
+under the Apache License, Version 2.0.

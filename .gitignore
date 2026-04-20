@@ -1,0 +1,41 @@
+# Binaries
+/bin/
+/dist/
+/build/
+p4ctl
+*.exe
+*.test
+*.out
+
+# Coverage
+coverage.out
+coverage.html
+*.cover
+
+# Go workspace / module cache
+/go.work
+/go.work.sum
+/vendor/
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# goreleaser
+/dist/
+
+# Logs
+*.log
+
+# Local config
+.env
+.env.local
+/.p4ctl.yaml
+
+# Generated docs (optional regen)
+/docs/api-reference.md.bak
