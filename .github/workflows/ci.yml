@@ -25,10 +25,13 @@ jobs:
           go-version: ${{ matrix.go }}
           cache: true
       - name: go build
+        shell: bash
         run: go build ./...
       - name: go vet
+        shell: bash
         run: go vet ./...
       - name: go test
+        shell: bash
         run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
       - name: upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.go == 'stable'
@@ -52,7 +55,13 @@ jobs:
           cache: true
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.60.3
+          # Install from source so the binary is compiled with the Go
+          # toolchain picked by setup-go (currently 1.25+). The prebuilt
+          # binary is otherwise tied to whatever Go was used to release
+          # that lint version and trips "Go language version used to
+          # build golangci-lint is lower than the targeted Go version".
+          version: v1.64.8
+          install-mode: goinstall
 
   tidy:
     name: go mod tidy
