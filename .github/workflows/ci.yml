@@ -35,7 +35,7 @@ jobs:
         run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
       - name: upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.go == 'stable'
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
           files: coverage.out
           flags: unittests
