@@ -35,7 +35,11 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           files: coverage.out
-          fail_ci_if_error: false
+          flags: unittests
+          slug: zhh2001/p4runtime-go-controller
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          verbose: true
 
   lint:
     name: golangci-lint
