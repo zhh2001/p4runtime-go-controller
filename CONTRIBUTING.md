@@ -4,7 +4,7 @@ Contributions are welcome. This document describes the workflow.
 
 ## Prerequisites
 
-- Go 1.22 or newer.
+- Go 1.25 or newer (matches the `go` directive in `go.mod`; the `toolchain` directive auto-downloads `go1.25.3` when needed).
 - `golangci-lint`, `govulncheck`, `shellcheck` for lint gates.
 - Docker for the optional BMv2 integration tests.
 
