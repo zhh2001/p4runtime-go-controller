@@ -53,7 +53,7 @@ jobs:
         with:
           go-version: "stable"
           cache: true
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v9
         with:
           # Install from source so the binary is compiled with the Go
           # toolchain picked by setup-go (currently 1.25+). The prebuilt
