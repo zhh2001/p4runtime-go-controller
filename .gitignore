@@ -2,7 +2,8 @@
 /bin/
 /dist/
 /build/
-p4ctl
+# Root-level compiled CLI (must stay anchored so cmd/p4ctl/ source is NOT ignored).
+/p4ctl
 *.exe
 *.test
 *.out
