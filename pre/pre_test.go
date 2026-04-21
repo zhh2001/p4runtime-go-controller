@@ -5,15 +5,22 @@ import (
 	"testing"
 	"time"
 
+	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"google.golang.org/grpc"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
 	"github.com/zhh2001/p4runtime-go-controller/internal/testutil"
 	"github.com/zhh2001/p4runtime-go-controller/pre"
 )
+
+// egressPort reads the legacy egress_port field from a wire-level Replica.
+// Marking a single helper with //nolint:staticcheck keeps the rest of the
+// file clean while still covering the deprecated path.
+func egressPort(r *p4v1.Replica) uint32 {
+	return r.GetEgressPort() //nolint:staticcheck // legacy BMv2-compatible field
+}
 
 func dial(t *testing.T, h *testutil.ServerHarness) *client.Client {
 	t.Helper()
@@ -63,14 +70,14 @@ func TestMulticastGroup_Write(t *testing.T) {
 	require.Len(t, req.Updates, 1)
 	assert.Equal(t, p4v1.Update_INSERT, req.Updates[0].Type)
 
-	pre_entry := req.Updates[0].GetEntity().GetPacketReplicationEngineEntry().GetMulticastGroupEntry()
-	require.NotNil(t, pre_entry)
-	assert.EqualValues(t, 1, pre_entry.GetMulticastGroupId())
-	require.Len(t, pre_entry.GetReplicas(), 3)
-	assert.EqualValues(t, 1, pre_entry.GetReplicas()[0].GetEgressPort())
-	assert.EqualValues(t, 2, pre_entry.GetReplicas()[1].GetEgressPort())
-	assert.EqualValues(t, 3, pre_entry.GetReplicas()[2].GetEgressPort())
-	assert.EqualValues(t, 1, pre_entry.GetReplicas()[2].GetInstance())
+	mge := req.Updates[0].GetEntity().GetPacketReplicationEngineEntry().GetMulticastGroupEntry()
+	require.NotNil(t, mge)
+	assert.EqualValues(t, 1, mge.GetMulticastGroupId())
+	require.Len(t, mge.GetReplicas(), 3)
+	assert.EqualValues(t, 1, egressPort(mge.GetReplicas()[0]))
+	assert.EqualValues(t, 2, egressPort(mge.GetReplicas()[1]))
+	assert.EqualValues(t, 3, egressPort(mge.GetReplicas()[2]))
+	assert.EqualValues(t, 1, mge.GetReplicas()[2].GetInstance())
 }
 
 func TestMulticastGroup_Modify(t *testing.T) {
@@ -171,7 +178,7 @@ func TestCloneSession_WriteAndRead(t *testing.T) {
 	assert.EqualValues(t, 2, cse.GetClassOfService())
 	assert.EqualValues(t, 128, cse.GetPacketLengthBytes())
 	require.Len(t, cse.GetReplicas(), 1)
-	assert.EqualValues(t, 5, cse.GetReplicas()[0].GetEgressPort())
+	assert.EqualValues(t, 5, egressPort(cse.GetReplicas()[0]))
 
 	require.NoError(t, w.ModifyCloneSession(context.Background(), cs))
 	require.NoError(t, w.DeleteCloneSession(context.Background(), 100))

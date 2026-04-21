@@ -234,8 +234,12 @@ func encodeReplicas(rs []Replica) []*p4v1.Replica {
 func decodeReplicas(rs []*p4v1.Replica) []Replica {
 	out := make([]Replica, 0, len(rs))
 	for _, r := range rs {
+		// GetEgressPort is marked deprecated in newer P4Runtime protos in
+		// favor of the bytes-typed Port field, but BMv2 and most 1.3.x
+		// targets still emit and accept egress_port. Keep using it for
+		// now; switch when targets ubiquitously advertise the new field.
 		out = append(out, Replica{
-			EgressPort: r.GetEgressPort(),
+			EgressPort: r.GetEgressPort(), //nolint:staticcheck // legacy BMv2-compatible field
 			Instance:   r.GetInstance(),
 		})
 	}
