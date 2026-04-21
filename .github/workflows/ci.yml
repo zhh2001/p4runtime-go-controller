@@ -32,7 +32,11 @@ jobs:
         run: go vet ./...
       - name: go test
         shell: bash
-        run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+        # -coverpkg=./... makes each package's tests also record coverage
+        # against every other package they transitively exercise (e.g.
+        # client tests exercise internal/stream). Without this flag, the
+        # overall percentage drops because those call sites go uncounted.
+        run: go test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./...
       - name: upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.go == 'stable'
         uses: codecov/codecov-action@v6

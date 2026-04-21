@@ -1,0 +1,38 @@
+# Codecov configuration.
+# Docs: https://docs.codecov.com/docs/codecov-yaml
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto       # compare against the base branch
+        threshold: 1%      # tolerate a 1 % drop without failing the check
+        informational: false
+    patch:
+      default:
+        target: 80%        # new / changed code must hit 80 %
+
+  # Round to one decimal when rendering the badge.
+  precision: 1
+  round: nearest
+  range: "70...90"
+
+comment:
+  layout: "reach,diff,flags,tree"
+  behavior: default
+  require_changes: false
+
+# Files and directories below are excluded from the coverage denominator.
+# They are either executed end-to-end via integration tests (cmd/, examples/),
+# are pure interface / doc declarations (metrics/, **/doc.go), or are test
+# support code that covers itself (internal/testutil/, test/).
+ignore:
+  - "cmd/**"
+  - "examples/**"
+  - "internal/testutil/**"
+  - "metrics/**"
+  - "test/**"
+  - "**/doc.go"
+  - "**/*_example_test.go"
+  - "**/example_test.go"
+  - "**/bench_test.go"
