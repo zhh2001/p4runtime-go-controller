@@ -10,6 +10,14 @@ every breaking change requires a major version bump.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-04-21
+
+### Added
+- `pre` package wrapping the P4Runtime Packet Replication Engine:
+  `MulticastGroup` + `CloneSession` with `Insert` / `Modify` / `Delete` /
+  `Read` helpers, plus a `Replica` type carrying egress port and instance.
+  Tests at 92 % statement coverage.
+
 ## [1.0.0] - 2026-04-20
 
 Initial public release.

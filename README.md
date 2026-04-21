@@ -77,6 +77,7 @@ connection, pipeline push, L2 learning switch, packet I/O, and counter reads.
 | Counters, Meters, Registers (direct and indirect) | ready |
 | PacketIn / PacketOut with metadata encode/decode | ready |
 | Digest subscribe and ack | ready |
+| Packet Replication Engine (multicast groups, clone sessions) | ready (v1.1) |
 | Reference CLI (`p4ctl`) | ready |
 | Prometheus adapter | planned |
 | OpenTelemetry gRPC interceptors | planned |

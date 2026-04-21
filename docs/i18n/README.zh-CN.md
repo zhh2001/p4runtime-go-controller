@@ -78,6 +78,7 @@ L2 学习交换机、Packet I/O 以及计数器读取。
 | Counters、Meters、Registers | 已就绪 |
 | PacketIn / PacketOut | 已就绪 |
 | Digest 订阅与 Ack | 已就绪 |
+| PRE(组播组 / 克隆会话) | 已就绪 (v1.1) |
 | Prometheus 适配器 | 规划中 |
 | OpenTelemetry gRPC 拦截器示例 | 规划中 |
 
