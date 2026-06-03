@@ -2,7 +2,7 @@ module github.com/zhh2001/p4runtime-go-controller
 
 go 1.25.0
 
-toolchain go1.25.3
+toolchain go1.26.4
 
 require (
 	github.com/p4lang/p4runtime v1.5.0
