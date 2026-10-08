@@ -11,6 +11,8 @@ import (
 
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
@@ -83,6 +85,65 @@ func TestBMv2_ConnectAndSetPipeline(t *testing.T) {
 	entries, err := c.ReadTableEntries(ctx, entry.GetTableId())
 	require.NoError(t, err)
 	require.NotEmpty(t, entries)
+
+	t.Run("duplicate insert", func(t *testing.T) {
+		err := c.WriteTableEntry(ctx, client.UpdateInsert, entry)
+		require.ErrorIs(t, err, errs.ErrEntryExists)
+		require.Equal(t, codes.Unknown, status.Code(err))
+		var writeErr *errs.WriteError
+		require.ErrorAs(t, err, &writeErr)
+		require.Len(t, writeErr.Updates, 1)
+		require.EqualValues(t, codes.AlreadyExists, writeErr.Updates[0].GetCanonicalCode())
+	})
+
+	missing, err := tableentry.NewBuilder(p, "MyIngress.t_l2").
+		Match("hdr.eth.dst", tableentry.Exact(codec.MustMAC("00:11:22:33:44:66"))).
+		Action("MyIngress.forward", tableentry.Param("port", codec.MustEncodeUint(1, 9))).Build()
+	require.NoError(t, err)
+	t.Run("missing entry", func(t *testing.T) {
+		for _, kind := range []client.UpdateType{client.UpdateModify, client.UpdateDelete} {
+			err := c.WriteTableEntry(ctx, kind, missing)
+			require.ErrorIs(t, err, errs.ErrEntryNotFound)
+			require.Equal(t, codes.Unknown, status.Code(err))
+			var writeErr *errs.WriteError
+			require.ErrorAs(t, err, &writeErr)
+			require.Len(t, writeErr.Updates, 1)
+			require.EqualValues(t, codes.NotFound, writeErr.Updates[0].GetCanonicalCode())
+		}
+	})
+
+	t.Run("partially successful batch", func(t *testing.T) {
+		fresh, err := tableentry.NewBuilder(p, "MyIngress.t_l2").
+			Match("hdr.eth.dst", tableentry.Exact(codec.MustMAC("00:11:22:33:44:77"))).
+			Action("MyIngress.forward", tableentry.Param("port", codec.MustEncodeUint(2, 9))).Build()
+		require.NoError(t, err)
+		err = c.Write(ctx, client.WriteOptions{},
+			client.TableEntryUpdate(client.UpdateInsert, fresh),
+			client.TableEntryUpdate(client.UpdateInsert, entry),
+			client.TableEntryUpdate(client.UpdateDelete, missing),
+		)
+		require.ErrorIs(t, err, errs.ErrEntryExists)
+		require.ErrorIs(t, err, errs.ErrEntryNotFound)
+		require.Equal(t, codes.Unknown, status.Code(err))
+		var writeErr *errs.WriteError
+		require.ErrorAs(t, err, &writeErr)
+		require.Len(t, writeErr.Updates, 3)
+		for i, code := range []codes.Code{codes.OK, codes.AlreadyExists, codes.NotFound} {
+			require.EqualValues(t, code, writeErr.Updates[i].GetCanonicalCode(), "update %d", i)
+		}
+		entries, err := c.ReadTableEntries(ctx, fresh.TableId)
+		require.NoError(t, err)
+		var stored *p4v1.TableEntry
+		for _, candidate := range entries {
+			if len(candidate.Match) == 1 && proto.Equal(candidate.Match[0], fresh.Match[0]) {
+				stored = candidate
+			}
+		}
+		require.NotNil(t, stored, "successful update was not stored")
+		require.True(t, proto.Equal(fresh.Action, stored.Action))
+		key := &p4v1.TableEntry{TableId: fresh.TableId, Match: fresh.Match}
+		require.NoError(t, c.WriteTableEntry(ctx, client.UpdateDelete, key))
+	})
 
 	t.Run("zero match and action parameter", func(t *testing.T) {
 		zero, err := tableentry.NewBuilder(p, "MyIngress.t_l2").

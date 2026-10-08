@@ -59,8 +59,9 @@ func TableEntryUpdate(kind UpdateType, entry *p4v1.TableEntry) *p4v1.Update {
 
 // Write issues a P4Runtime WriteRequest containing the supplied updates.
 // Returns ErrNotPrimary if the client is not primary at the moment of the
-// call. Translates well-known gRPC status codes into sentinel errors where
-// possible.
+// call. RPC failures return *errs.WriteError, preserving the gRPC status
+// and any complete set of per-update results. errors.Is matches known
+// sentinels for any failed update.
 func (c *Client) Write(ctx context.Context, opts WriteOptions, updates ...*p4v1.Update) error {
 	if !c.IsPrimary() {
 		return errs.ErrNotPrimary
@@ -80,55 +81,42 @@ func (c *Client) Write(ctx context.Context, opts WriteOptions, updates ...*p4v1.
 	}
 	_, err := c.rpc.Write(ctx, req)
 	if err != nil {
-		return translateWriteError(err)
+		return translateWriteError(err, len(updates))
 	}
 	return nil
 }
 
-func translateWriteError(err error) error {
+func translateWriteError(err error, updateCount int) error {
 	st, ok := status.FromError(err)
 	if !ok {
 		return err
 	}
-	switch st.Code() {
-	case codes.AlreadyExists:
-		return fmt.Errorf("%w: %s", errs.ErrEntryExists, st.Message())
-	case codes.NotFound:
-		return fmt.Errorf("%w: %s", errs.ErrEntryNotFound, st.Message())
-	case codes.FailedPrecondition:
-		// P4Runtime targets return FAILED_PRECONDITION when the client is
-		// no longer primary — surface as ErrNotPrimary so callers can
-		// re-arbitrate.
-		if st.Message() != "" && containsFold(st.Message(), "primary") {
-			return fmt.Errorf("%w: %s", errs.ErrNotPrimary, st.Message())
-		}
-	}
-	return fmt.Errorf("write: %w", err)
+	return &errs.WriteError{Cause: err, Updates: writeUpdateResults(st, updateCount)}
 }
 
-// containsFold is a small stdlib-free substring-ignore-case match.
-func containsFold(haystack, needle string) bool {
-	hl, nl := len(haystack), len(needle)
-	if nl == 0 || nl > hl {
-		return nl == 0
+func writeUpdateResults(st *status.Status, updateCount int) []*p4v1.Error {
+	// Per-update failures use UNKNOWN with exactly one p4.Error for every
+	// update, including successful updates. Never filter details, since
+	// doing so would shift their association with request indices.
+	details := st.Proto().GetDetails()
+	if st.Code() != codes.Unknown || updateCount <= 0 || len(details) != updateCount {
+		return nil
 	}
-outer:
-	for i := 0; i+nl <= hl; i++ {
-		for j := 0; j < nl; j++ {
-			if toLower(haystack[i+j]) != toLower(needle[j]) {
-				continue outer
-			}
+	updates := make([]*p4v1.Error, updateCount)
+	failed := false
+	for i, detail := range details {
+		update := new(p4v1.Error)
+		if detail == nil || detail.UnmarshalTo(update) != nil ||
+			update.GetCanonicalCode() < int32(codes.OK) || update.GetCanonicalCode() > int32(codes.Unauthenticated) {
+			return nil
 		}
-		return true
+		updates[i] = update
+		failed = failed || update.GetCanonicalCode() != int32(codes.OK)
 	}
-	return false
-}
-
-func toLower(c byte) byte {
-	if c >= 'A' && c <= 'Z' {
-		return c - 'A' + 'a'
+	if !failed {
+		return nil
 	}
-	return c
+	return updates
 }
 
 // ReadTableEntries streams every TableEntry for the given table (or every

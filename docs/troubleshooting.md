@@ -21,6 +21,27 @@ The SDK walks `VERIFY_AND_COMMIT → RECONCILE_AND_COMMIT → COMMIT`. If every 
 - P4Info bytes do not match the compiled pipeline blob. Re-run `p4c` to produce a matching pair.
 - The target dislikes `RECONCILE_AND_COMMIT` on first boot — pass `client.SetPipelineOptions{Action: client.PipelineCommit}` once to seed the pipeline, then switch back to the default.
 
+## Write returns `Unknown`
+
+P4Runtime reports per-update failures with RPC code `Unknown` and ordered `p4.Error` details. Use `errors.Is(err, errs.ErrEntryExists)` or `errors.Is(err, errs.ErrEntryNotFound)` to classify known failures. In a batch, either match can refer to just one update.
+
+With the standard library `errors` package and the SDK error package imported as `errs`, inspect results before deciding which updates to retry:
+
+```go
+var writeErr *errs.WriteError
+if errors.As(err, &writeErr) {
+    for i, result := range writeErr.Updates {
+        if result.GetCanonicalCode() != int32(codes.OK) {
+            log.Printf("update %d: %s", i, result.GetMessage())
+        }
+    }
+}
+```
+
+`Updates` includes successful results at their original indices. It is nil for RPC-wide errors or incomplete or malformed details. `status.FromError(err)` still exposes the original response. For `CONTINUE_ON_ERROR`, successful updates may already be stored. For rollback or atomic writes, account for that atomicity when deciding what to retry.
+
+A `PermissionDenied` response can also indicate a role restriction. Only RPC-wide messages explicitly identifying lost primary status map to `ErrNotPrimary`.
+
 ## Leading zeros in match fields
 
 P4Runtime's canonical integer encoding uses the shortest nonempty byte string. Zero is `[]byte{0x00}`. Extra leading zero bytes are accepted when the value fits the field width, but canonical values preserve read-write symmetry. Use `codec.EncodeBytes`, `codec.MAC`, `codec.IPv4`, or `codec.IPv6` to normalize values.

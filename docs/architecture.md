@@ -116,3 +116,7 @@ Every sentinel in the public `errors` package has a narrow, well-defined meaning
 | `ErrElectionIDZero`                              | Election ID was the reserved zero value.     |
 | `ErrInvalidBitWidth`                             | Value too large for the declared bit width.  |
 | `ErrInvalidMatchField` / `ErrInvalidActionParam` | Unknown name at build time.                  |
+
+Write RPC errors expose `*errors.WriteError` through `errors.As`. `Updates[i]` is the target's `p4.Error` for request update `i`, including `OK` results. `errors.Is` matches any failed update in the batch. `status.FromError` preserves the RPC's original code, message, and details, including the top-level `Unknown` used for per-update failures.
+
+Results are exposed only when an `Unknown` response contains exactly one valid `p4.Error` per request update and at least one failure. Otherwise `Updates` is nil and the raw status remains available. Check the result codes and requested atomicity before retrying a batch. The SDK does not retry writes automatically.

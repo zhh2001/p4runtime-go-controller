@@ -160,3 +160,7 @@ Sentinel errors in the public `errors` package let callers react programmaticall
 - `ErrStreamClosed` — stream was closed by the target or by `Client.Close`.
 
 The concrete error type wraps the gRPC status so callers can still use `status.FromError`.
+
+Write RPC failures return `*errors.WriteError`. Its `Updates` slice contains one `p4.Error` per request update, in the original order, including successful updates with code `OK`. `errors.Is` matches any failed update. The RPC status retains its original code, message, and details, so a per-update failure still has RPC code `Unknown`. Missing or malformed results leave `Updates` nil.
+
+For a partially successful batch, inspect each result and the requested atomicity before retrying. The SDK does not retry writes automatically.

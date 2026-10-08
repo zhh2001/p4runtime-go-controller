@@ -1,4 +1,4 @@
-// Package errors exposes the sentinel errors returned by the
+// Package errors exposes the sentinel errors and RPC error types returned by the
 // p4runtime-go-controller SDK.
 //
 // Callers should use errors.Is or errors.As (from the standard library) to

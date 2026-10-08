@@ -18,6 +18,17 @@ The tests cover full and partial prefixes, short masks, and padded inputs. Range
 
 The L2 pipeline and arbitration tests use the existing `P4RT_P4INFO` and `P4RT_DEVICE_CONFIG` variables. Set both sets of pipeline variables to run the full integration suite against one target.
 
+The L2 tests also check duplicate inserts, missing-entry modifications and deletions, and a partially successful batch. They verify the per-update error indices and read back the batch's successful insert. A separate test submits a stale election ID and checks that the target's permission response remains available.
+
+To check writes before pipeline installation, start a fresh target and run this test separately, before the rest of the suite:
+
+```bash
+P4RT_TEST_FRESH_TARGET=1 go test -race -tags=integration -count=1 \
+  -run '^TestBMv2_WriteWithoutPipeline$' ./test/integration/...
+```
+
+Do not set `P4RT_TEST_FRESH_TARGET` when running the full suite. Other tests install a pipeline.
+
 Some PI versions check LPM trailing zeros against the padded byte width. They reject these 9-bit LPM cases with `Invalid LPM value, incorrect number of trailing zeros`. These cases require PI to use the field width for that check. The TERNARY cases can be run separately with `-run '^TestBMv2_FieldWidthMasks$/ternary'`.
 
 The RANGE cases can be run separately with `-run '^TestBMv2_FieldWidthMasks$/range'`.

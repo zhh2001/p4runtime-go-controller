@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
 	errs "github.com/zhh2001/p4runtime-go-controller/errors"
@@ -81,6 +82,13 @@ func TestWrite_ErrorTranslation(t *testing.T) {
 		{name: "already exists", inErr: status.Error(codes.AlreadyExists, "dup"), wantIs: errs.ErrEntryExists},
 		{name: "not found", inErr: status.Error(codes.NotFound, "nope"), wantIs: errs.ErrEntryNotFound},
 		{name: "not primary", inErr: status.Error(codes.FailedPrecondition, "not primary controller"), wantIs: errs.ErrNotPrimary},
+		{name: "primary rejected by target", inErr: status.Error(codes.PermissionDenied, "Not primary"), wantIs: errs.ErrNotPrimary},
+		{name: "pipeline unset", inErr: status.Error(codes.FailedPrecondition, "No forwarding pipeline config set for this device"), wantIs: errs.ErrPipelineNotSet},
+		{name: "unsupported feature", inErr: status.Error(codes.Unimplemented, "atomic writes unsupported"), wantIs: errs.ErrTargetUnsupported},
+		{name: "role denied", inErr: status.Error(codes.PermissionDenied, "primary role cannot write this table")},
+		{name: "unrelated precondition", inErr: status.Error(codes.FailedPrecondition, "primary role has no access to this table")},
+		{name: "pipeline mismatch", inErr: status.Error(codes.FailedPrecondition, "pipeline cookie differs")},
+		{name: "deadline", inErr: status.Error(codes.DeadlineExceeded, "deadline exceeded")},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -97,7 +105,80 @@ func TestWrite_ErrorTranslation(t *testing.T) {
 			require.NoError(t, c.BecomePrimary(ctx))
 
 			err = c.WriteTableEntry(ctx, client.UpdateInsert, &p4v1.TableEntry{TableId: 1})
-			assert.ErrorIs(t, err, tc.wantIs)
+			require.Error(t, err)
+			if tc.wantIs != nil {
+				assert.ErrorIs(t, err, tc.wantIs)
+			} else {
+				for _, sentinel := range []error{errs.ErrNotPrimary, errs.ErrPipelineNotSet, errs.ErrEntryExists, errs.ErrEntryNotFound, errs.ErrTargetUnsupported} {
+					assert.NotErrorIs(t, err, sentinel)
+				}
+			}
+			assert.Equal(t, status.Code(tc.inErr), status.Code(err))
+			st, ok := status.FromError(err)
+			require.True(t, ok)
+			assert.True(t, proto.Equal(status.Convert(tc.inErr).Proto(), st.Proto()))
+		})
+	}
+}
+
+func TestWrite_UpdateResults(t *testing.T) {
+	cases := []struct {
+		name    string
+		results []*p4v1.Error
+		wantIs  []error
+	}{
+		{"duplicate insert", []*p4v1.Error{{CanonicalCode: int32(codes.AlreadyExists), Message: "duplicate"}}, []error{errs.ErrEntryExists}},
+		{"missing entry", []*p4v1.Error{{CanonicalCode: int32(codes.NotFound), Message: "missing"}}, []error{errs.ErrEntryNotFound}},
+		{"mixed batch", []*p4v1.Error{
+			{},
+			{CanonicalCode: int32(codes.AlreadyExists), Message: "duplicate", Space: "bmv2-v1model-test", Code: 99},
+			{CanonicalCode: int32(codes.NotFound), Message: "missing"},
+			{CanonicalCode: int32(codes.Unimplemented), Message: "unsupported"},
+			{},
+		}, []error{errs.ErrEntryExists, errs.ErrEntryNotFound, errs.ErrTargetUnsupported}},
+		{"per-entry permission", []*p4v1.Error{{CanonicalCode: int32(codes.PermissionDenied), Message: "not primary for this role"}}, nil},
+		{"per-entry precondition", []*p4v1.Error{{CanonicalCode: int32(codes.FailedPrecondition), Message: "No forwarding pipeline config set"}}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rpcStatus := status.New(codes.Unknown, "Error(s) during Write")
+			for _, result := range tc.results {
+				var err error
+				rpcStatus, err = rpcStatus.WithDetails(result)
+				require.NoError(t, err)
+			}
+			h := testutil.StartServer(t)
+			h.Mu.Lock()
+			h.OverrideWriteErr = rpcStatus.Err()
+			h.Mu.Unlock()
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			c, err := dialViaHarness(ctx, h)
+			require.NoError(t, err)
+			defer c.Close()
+			require.NoError(t, c.BecomePrimary(ctx))
+			updates := make([]*p4v1.Update, len(tc.results))
+			for i := range updates {
+				updates[i] = client.TableEntryUpdate(client.UpdateInsert, &p4v1.TableEntry{TableId: uint32(i + 1)})
+			}
+			err = c.Write(ctx, client.WriteOptions{Atomicity: client.AtomicityRollbackOnError}, updates...)
+			require.Error(t, err)
+			for _, sentinel := range tc.wantIs {
+				assert.ErrorIs(t, err, sentinel)
+			}
+			assert.NotErrorIs(t, err, errs.ErrNotPrimary)
+			assert.NotErrorIs(t, err, errs.ErrPipelineNotSet)
+			var writeErr *errs.WriteError
+			require.ErrorAs(t, err, &writeErr)
+			require.Len(t, writeErr.Updates, len(tc.results))
+			for i, want := range tc.results {
+				assert.True(t, proto.Equal(want, writeErr.Updates[i]), "result index %d", i)
+			}
+			assert.True(t, proto.Equal(rpcStatus.Proto(), status.Convert(err).Proto()))
+			h.Mu.Lock()
+			assert.Equal(t, p4v1.WriteRequest_ROLLBACK_ON_ERROR, h.WriteRequests[0].GetAtomicity())
+			assert.Len(t, h.WriteRequests, 1, "Write must not retry a failed batch")
+			h.Mu.Unlock()
 		})
 	}
 }
