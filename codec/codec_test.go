@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/zhh2001/p4runtime-go-controller/codec"
+	errs "github.com/zhh2001/p4runtime-go-controller/errors"
 )
 
 func TestZeroEncodings(t *testing.T) {
@@ -49,4 +50,20 @@ func TestMustZeroEncodings(t *testing.T) {
 			require.Equal(t, []byte{0x00}, encoded)
 		})
 	}
+}
+
+func TestMasks_FieldWidth(t *testing.T) {
+	mask, err := codec.TernaryMask(8, 9)
+	require.NoError(t, err)
+	require.Equal(t, []byte{1, 0xfe}, mask)
+	value, err := codec.LPMMask([]byte{0, 1, 0xff}, 8, 9)
+	require.NoError(t, err)
+	require.Equal(t, []byte{1, 0xfe}, value)
+	value, err = codec.TernaryApply([]byte{0, 1, 0xff}, mask, 9)
+	require.NoError(t, err)
+	require.Equal(t, []byte{1, 0xfe}, value)
+	_, err = codec.LPMMask([]byte{3, 0xff}, 9, 9)
+	require.ErrorIs(t, err, errs.ErrInvalidBitWidth)
+	_, err = codec.TernaryApply([]byte{1, 0xff}, []byte{3, 0xff}, 9)
+	require.ErrorIs(t, err, errs.ErrInvalidBitWidth)
 }

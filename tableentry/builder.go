@@ -240,11 +240,15 @@ func encodeField(mf *pipeline.MatchFieldDef, mv MatchValue) (*p4v1.FieldMatch, e
 		if err != nil {
 			return nil, fmt.Errorf("match %q: %w", mf.Name, err)
 		}
+		mask, err := codec.EncodeBytes(v.Mask, int(mf.Bitwidth))
+		if err != nil {
+			return nil, fmt.Errorf("match %q mask: %w", mf.Name, err)
+		}
 		return &p4v1.FieldMatch{
 			FieldId: mf.ID,
 			FieldMatchType: &p4v1.FieldMatch_Ternary_{Ternary: &p4v1.FieldMatch_Ternary{
 				Value: applied,
-				Mask:  padAndStrip(v.Mask, int(mf.Bitwidth)),
+				Mask:  mask,
 			}},
 		}, nil
 	case RangeMatch:
@@ -331,16 +335,6 @@ func allZero(b []byte) bool {
 		}
 	}
 	return true
-}
-
-func padAndStrip(v []byte, bitwidth int) []byte {
-	w := (bitwidth + 7) / 8
-	if len(v) >= w {
-		return append([]byte(nil), v...)
-	}
-	out := make([]byte, w)
-	copy(out[w-len(v):], v)
-	return out
 }
 
 // Equals is a convenience used by tests and the read path: two encoded match

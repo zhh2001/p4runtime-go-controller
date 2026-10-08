@@ -66,19 +66,23 @@ func MustIPv6(s string) []byte {
 }
 
 // LPMMask truncates value to prefixLen bits and returns the canonical
-// encoding. prefixLen must be in [0, bitwidth]. A zero prefix returns a
-// single zero byte, and the caller should omit the match field entirely.
+// encoding. The prefix starts at the field's highest bit, ignoring byte padding.
+// bitwidth must be positive, prefixLen must be in [0, bitwidth], and value must
+// fit the field. A zero prefix returns a single zero byte, and the caller should
+// omit the match field entirely.
 func LPMMask(value []byte, prefixLen int, bitwidth int) ([]byte, error) {
 	return internalcodec.LPMMask(value, prefixLen, bitwidth)
 }
 
 // TernaryMask builds a prefix-style ternary mask with the top prefixLen
-// bits set. A zero prefix returns a single zero byte.
+// field bits set, ignoring byte padding. bitwidth must be positive, and
+// prefixLen must be in [0, bitwidth]. A zero prefix returns a single zero byte.
 func TernaryMask(prefixLen, bitwidth int) ([]byte, error) {
 	return internalcodec.TernaryMask(prefixLen, bitwidth)
 }
 
-// TernaryApply returns value & mask in canonical encoding.
+// TernaryApply returns value & mask in canonical encoding. Both inputs must fit
+// the positive bitwidth. Redundant leading zeros are accepted.
 func TernaryApply(value, mask []byte, bitwidth int) ([]byte, error) {
 	return internalcodec.TernaryApply(value, mask, bitwidth)
 }

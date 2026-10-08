@@ -90,6 +90,8 @@ P4Runtime's canonical encoding uses the shortest nonempty big-endian byte string
 
 The table entry builder handles wildcard omission separately. `Optional(nil)`, an LPM prefix of zero, and an all-zero ternary mask omit the corresponding match field. A zero value with an explicit optional match, a nonzero LPM prefix, or a nonzero ternary mask remains in the entry.
 
+LPM and prefix-style ternary masks count from the field's highest bit, excluding byte padding. For a 9-bit field, a full mask is `01ff`, and an 8-bit prefix mask is `01fe`. Mask helpers validate the value and mask before applying them, so masking cannot hide an input that exceeds the field width. Redundant leading zero bytes are accepted and removed from encoded values and masks.
+
 `internal/codec` provides these helpers:
 
 - `EncodeUint(uint64, bits)` — integer → canonical bytes.

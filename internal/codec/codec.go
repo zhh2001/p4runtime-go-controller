@@ -13,7 +13,6 @@ package codec
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -176,9 +175,10 @@ func MustIPv6(s string) []byte {
 }
 
 // LPMMask truncates value to the first prefixLen bits and returns the
-// canonical encoding. bitwidth is the total field width. prefixLen must
-// satisfy 0 <= prefixLen <= bitwidth. A zero prefix returns a single zero
-// byte. Callers should omit the match entirely in that case.
+// canonical encoding. The prefix starts at the field's highest bit, ignoring
+// byte padding. bitwidth must be positive, and prefixLen must be in [0, bitwidth].
+// Value must fit the field even when prefixLen is zero. A zero prefix returns
+// a single zero byte. Callers should omit the match entirely in that case.
 func LPMMask(value []byte, prefixLen int, bitwidth int) ([]byte, error) {
 	if bitwidth <= 0 {
 		return nil, fmt.Errorf("codec.LPMMask: bitwidth %d must be positive", bitwidth)
@@ -186,35 +186,23 @@ func LPMMask(value []byte, prefixLen int, bitwidth int) ([]byte, error) {
 	if prefixLen < 0 || prefixLen > bitwidth {
 		return nil, fmt.Errorf("codec.LPMMask: prefixLen %d out of range 0..%d", prefixLen, bitwidth)
 	}
-	if prefixLen == 0 {
-		return []byte{0x00}, nil
+	masked, err := EncodeBytes(value, bitwidth)
+	if err != nil {
+		return nil, fmt.Errorf("codec.LPMMask value: %w", err)
 	}
-	// Pad or trim to maxBytes (ceil(bitwidth/8)).
-	maxBytes := byteLen(bitwidth)
-	padded := padToWidth(value, maxBytes)
-	if padded == nil {
-		return nil, fmt.Errorf("codec.LPMMask: value longer than %d bytes", maxBytes)
-	}
-	// Zero out everything after prefixLen bits.
-	masked := make([]byte, len(padded))
-	copy(masked, padded)
-	fullBytes := prefixLen / 8
-	tailBits := prefixLen % 8
-	for i := fullBytes; i < len(masked); i++ {
-		masked[i] = 0
-	}
-	if tailBits != 0 && fullBytes < len(masked) {
-		keep := byte(0xff) << uint(8-tailBits)
-		masked[fullBytes] = padded[fullBytes] & keep
-	}
+	clearLowBits(masked, bitwidth-prefixLen)
 	return stripLeadingZeros(masked), nil
 }
 
 // TernaryMask builds a mask with the upper prefixLen bits set and the rest
 // zero, sized for the given bit width. Useful when the caller wants a
-// prefix-style ternary match without thinking about byte alignment.
-// A zero prefix returns a single zero byte.
+// prefix-style ternary match without thinking about byte alignment. Padding
+// bits above the field stay zero. bitwidth must be positive, and prefixLen must
+// be in [0, bitwidth]. A zero prefix returns a single zero byte.
 func TernaryMask(prefixLen, bitwidth int) ([]byte, error) {
+	if bitwidth <= 0 {
+		return nil, fmt.Errorf("codec.TernaryMask: bitwidth %d must be positive", bitwidth)
+	}
 	if prefixLen < 0 || prefixLen > bitwidth {
 		return nil, fmt.Errorf("codec.TernaryMask: prefixLen %d out of range 0..%d", prefixLen, bitwidth)
 	}
@@ -223,32 +211,50 @@ func TernaryMask(prefixLen, bitwidth int) ([]byte, error) {
 	}
 	maxBytes := byteLen(bitwidth)
 	mask := make([]byte, maxBytes)
-	fullBytes := prefixLen / 8
-	for i := 0; i < fullBytes; i++ {
+	for i := range mask {
 		mask[i] = 0xff
 	}
-	tail := prefixLen % 8
-	if tail != 0 && fullBytes < maxBytes {
-		mask[fullBytes] = byte(0xff) << uint(8-tail)
+	if leadingBits := bitwidth % 8; leadingBits != 0 {
+		mask[0] = byte((1 << uint(leadingBits)) - 1)
 	}
-	// Trim canonical.
+	clearLowBits(mask, bitwidth-prefixLen)
 	return stripLeadingZeros(mask), nil
 }
 
 // TernaryApply computes value & mask for a ternary match. value and mask are
-// left-padded to the same length before the AND.
+// interpreted as big-endian integers and must both fit the positive bitwidth.
+// Redundant leading zeros are accepted. The inputs are not modified.
 func TernaryApply(value, mask []byte, bitwidth int) ([]byte, error) {
-	maxBytes := byteLen(bitwidth)
-	v := padToWidth(value, maxBytes)
-	m := padToWidth(mask, maxBytes)
-	if v == nil || m == nil {
-		return nil, errors.New("codec.TernaryApply: value or mask exceeds bit width")
+	v, err := EncodeBytes(value, bitwidth)
+	if err != nil {
+		return nil, fmt.Errorf("codec.TernaryApply value: %w", err)
 	}
-	out := make([]byte, maxBytes)
-	for i := 0; i < maxBytes; i++ {
-		out[i] = v[i] & m[i]
+	m, err := EncodeBytes(mask, bitwidth)
+	if err != nil {
+		return nil, fmt.Errorf("codec.TernaryApply mask: %w", err)
 	}
-	return stripLeadingZeros(out), nil
+	for i := range v {
+		j := i + len(m) - len(v)
+		if j < 0 {
+			v[i] = 0
+		} else {
+			v[i] &= m[j]
+		}
+	}
+	return stripLeadingZeros(v), nil
+}
+
+// clearLowBits clears count bits from the least significant end of value.
+func clearLowBits(value []byte, count int) {
+	for i := len(value) - 1; i >= 0 && count > 0; i-- {
+		if count >= 8 {
+			value[i] = 0
+			count -= 8
+		} else {
+			value[i] &= byte(0xff) << uint(count)
+			break
+		}
+	}
 }
 
 // ValidateRange checks that low <= high when both are interpreted as
