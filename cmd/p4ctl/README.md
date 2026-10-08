@@ -94,6 +94,17 @@ Match syntax:
 - `field=low..high` — RANGE
 - `field=?value` — OPTIONAL
 
+Delete an entry using its match fields, without an action or parameters:
+
+```sh
+p4ctl table delete \
+    --p4info ./examples/testdata/l2.p4info.txt \
+    --table MyIngress.t_l2 \
+    --match "hdr.eth.dst=00:11:22:33:44:55"
+```
+
+For tables with TERNARY, RANGE, or OPTIONAL fields, pass the same positive `--priority` used for insertion. EXACT and LPM tables require priority zero. Every EXACT field must be supplied. Wildcard fields identify a wildcard entry with that key and priority, so omitting them does not delete all matching entries.
+
 ### 4. Send a packet out a specific port
 
 ```sh

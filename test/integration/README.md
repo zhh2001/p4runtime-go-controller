@@ -34,3 +34,23 @@ Do not set `P4RT_TEST_FRESH_TARGET` when running the full suite. Other tests ins
 Some PI versions check LPM trailing zeros against the padded byte width. They reject these 9-bit LPM cases with `Invalid LPM value, incorrect number of trailing zeros`. These cases require PI to use the field width for that check. The TERNARY cases can be run separately with `-run '^TestBMv2_FieldWidthMasks$/ternary'`.
 
 The RANGE cases can be run separately with `-run '^TestBMv2_FieldWidthMasks$/range'`.
+
+## CLI table operations
+
+`TestBMv2_TableCLI` runs the actual CLI against EXACT, LPM, TERNARY, RANGE, OPTIONAL, and mixed-match tables from `testdata/table_keys.p4`. It inserts two entries, modifies one, deletes it without an action, and reads back the other entry. It also checks wildcard entries, identical matches at different priorities, missing entries, and invalid keys. The LPM field is 32 bits, so this test can run on PI versions with the 9-bit LPM limitation above.
+
+From the repository root, with a running BMv2 target:
+
+```bash
+mkdir -p /tmp/p4runtime-integration/table-keys
+p4c --target bmv2 --arch v1model \
+  --p4runtime-files /tmp/p4runtime-integration/table-keys/table_keys.p4info.txtpb \
+  -o /tmp/p4runtime-integration/table-keys test/integration/testdata/table_keys.p4
+go build -o /tmp/p4runtime-integration/p4ctl ./cmd/p4ctl
+P4RT_CLI_BIN=/tmp/p4runtime-integration/p4ctl \
+P4RT_KEY_P4INFO=/tmp/p4runtime-integration/table-keys/table_keys.p4info.txtpb \
+P4RT_KEY_DEVICE_CONFIG=/tmp/p4runtime-integration/table-keys/table_keys.json \
+go test -race -tags=integration -count=1 -run '^TestBMv2_TableCLI$' ./test/integration/...
+```
+
+Set all three variables to include this test in the full suite. With none set, the CLI test is skipped. The test installs its pipeline and uses plaintext on a target with device ID 1.

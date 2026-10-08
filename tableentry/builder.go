@@ -15,7 +15,7 @@ import (
 )
 
 // Builder is a fluent constructor for p4v1.TableEntry protos. The same
-// Builder may be reused (Build creates a fresh proto every time).
+// Builder may be reused (Build and BuildKey create fresh protos every time).
 type Builder struct {
 	pipeline *pipeline.Pipeline
 	table    *pipeline.TableDef
@@ -72,8 +72,8 @@ func (b *Builder) Action(name string, params ...ActionParam) *Builder {
 	return b
 }
 
-// Priority sets the priority (required for TERNARY and RANGE entries,
-// disallowed for pure EXACT entries).
+// Priority sets the priority. TERNARY, RANGE, and OPTIONAL tables require a
+// positive priority. Other tables require zero.
 func (b *Builder) Priority(p int32) *Builder {
 	b.priority = p
 	return b
@@ -117,24 +117,15 @@ func Param(name string, value []byte) ActionParam {
 // Build validates the builder against the pipeline and produces a concrete
 // p4v1.TableEntry proto.
 func (b *Builder) Build() (*p4v1.TableEntry, error) {
-	if b.tableErr != nil {
-		return nil, b.tableErr
-	}
-	entry := &p4v1.TableEntry{
-		TableId:         b.table.ID,
-		IsDefaultAction: b.isDefault,
+	entry, err := b.BuildKey()
+	if err != nil {
+		return nil, err
 	}
 	if b.timeout > 0 {
 		entry.IdleTimeoutNs = b.timeout
 	}
 	if len(b.metadata) > 0 {
 		entry.Metadata = append([]byte(nil), b.metadata...)
-	}
-
-	if !b.isDefault {
-		if err := b.encodeMatches(entry); err != nil {
-			return nil, err
-		}
 	}
 
 	if b.action == nil {
@@ -145,22 +136,39 @@ func (b *Builder) Build() (*p4v1.TableEntry, error) {
 		return nil, err
 	}
 	entry.Action = &p4v1.TableAction{Type: &p4v1.TableAction_Action{Action: act}}
+	return entry, nil
+}
 
-	// Priority semantics.
+// BuildKey validates and builds only the fields identifying an entry:
+// table ID, match fields, priority, and the default-action flag. Action,
+// metadata, and idle timeout are ignored. Use it for DELETE updates of
+// ordinary entries. Default entries cannot be deleted.
+func (b *Builder) BuildKey() (*p4v1.TableEntry, error) {
+	if b.tableErr != nil {
+		return nil, b.tableErr
+	}
+	entry := &p4v1.TableEntry{TableId: b.table.ID, IsDefaultAction: b.isDefault}
+	if b.isDefault {
+		return entry, nil
+	}
+	if err := b.encodeMatches(entry); err != nil {
+		return nil, err
+	}
+
 	needsPriority := false
-	if !b.isDefault {
-		for _, m := range b.table.MatchFields {
-			switch m.MatchType {
-			case p4configv1.MatchField_TERNARY, p4configv1.MatchField_RANGE, p4configv1.MatchField_OPTIONAL:
-				needsPriority = true
-			}
+	for _, m := range b.table.MatchFields {
+		switch m.MatchType {
+		case p4configv1.MatchField_TERNARY, p4configv1.MatchField_RANGE, p4configv1.MatchField_OPTIONAL:
+			needsPriority = true
 		}
 	}
 	if needsPriority {
-		if b.priority == 0 {
-			return nil, fmt.Errorf("tableentry.Build: table %q requires non-zero priority", b.table.Name)
+		if b.priority <= 0 {
+			return nil, fmt.Errorf("tableentry: table %q requires positive priority", b.table.Name)
 		}
 		entry.Priority = b.priority
+	} else if b.priority != 0 {
+		return nil, fmt.Errorf("tableentry: table %q requires zero priority", b.table.Name)
 	}
 	return entry, nil
 }
@@ -174,6 +182,9 @@ func (b *Builder) encodeMatches(entry *p4v1.TableEntry) error {
 	for _, mf := range order {
 		mv, ok := b.matches[mf.Name]
 		if !ok {
+			if mf.MatchType == p4configv1.MatchField_EXACT {
+				return fmt.Errorf("%w: exact field %q required on table %q", errs.ErrInvalidMatchField, mf.Name, b.table.Name)
+			}
 			// Missing match value means don't-care; omit entirely.
 			continue
 		}

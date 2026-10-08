@@ -89,6 +89,8 @@ LPM and prefix-style ternary masks count from the field's highest bit, excluding
 
 Range endpoints are normalized before comparison. Leading zero bytes do not affect their order, and the builder emits canonical low and high values.
 
+`Builder.BuildKey()` constructs the table ID, match fields, priority, and default-action flag without an action, metadata, or idle timeout. Use it to identify an ordinary entry for deletion. `Build()` uses the same key validation and also requires an action. Every EXACT field is required. Tables with TERNARY, RANGE, or OPTIONAL fields require a positive priority, even when those fields are wildcarded. Other tables require zero priority. `AsDefault()` omits matches and priority from both forms. Default entries cannot be deleted.
+
 `internal/codec` provides these helpers:
 
 - `EncodeUint(uint64, bits)` — integer → canonical bytes.

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"github.com/spf13/cobra"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
@@ -44,6 +45,7 @@ var tableModifyCmd = &cobra.Command{
 var tableDeleteCmd = &cobra.Command{
 	Use:   "delete",
 	Short: "Delete an entry from the specified table",
+	Long:  "Delete the entry identified by its match fields and priority. No action is required. Wildcard match fields identify a wildcard entry, not a bulk deletion.",
 	RunE:  func(cmd *cobra.Command, _ []string) error { return tableWrite(cmd, client.UpdateDelete) },
 }
 
@@ -110,14 +112,15 @@ func tableWrite(cmd *cobra.Command, kind client.UpdateType) error {
 			params = append(params, ap)
 		}
 		b.Action(tableAction, params...)
-		if tablePriority != 0 {
-			b.Priority(tablePriority)
-		}
 	}
-	entry, err := b.Build()
+	b.Priority(tablePriority)
+	var entry *p4v1.TableEntry
+	if kind == client.UpdateDelete {
+		entry, err = b.BuildKey()
+	} else {
+		entry, err = b.Build()
+	}
 	if err != nil {
-		// Build requires an action on every path; for DELETE we still
-		// need one logical path so let builder enforce its invariants.
 		return err
 	}
 
@@ -284,11 +287,11 @@ func init() {
 	}
 	for _, sub := range []*cobra.Command{tableInsertCmd, tableModifyCmd, tableDeleteCmd} {
 		sub.Flags().StringSliceVar(&tableMatches, "match", nil, "match spec(s): field=value, field=value/prefix, field=value&mask, field=low..high, field=?value")
+		sub.Flags().Int32Var(&tablePriority, "priority", 0, "entry priority (positive for ternary/range/optional, zero otherwise)")
 	}
 	for _, sub := range []*cobra.Command{tableInsertCmd, tableModifyCmd} {
 		sub.Flags().StringVar(&tableAction, "action", "", "action name")
 		sub.Flags().StringSliceVar(&tableParams, "param", nil, "action param(s): name=value")
-		sub.Flags().Int32Var(&tablePriority, "priority", 0, "priority (required for ternary/range/optional)")
 	}
 	tableCmd.AddCommand(tableInsertCmd, tableModifyCmd, tableDeleteCmd, tableReadCmd)
 }
