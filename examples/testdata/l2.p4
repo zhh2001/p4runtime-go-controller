@@ -1,20 +1,7 @@
-/*
- * Minimal illustrative L2 switch program.
- *
- * This is a reduced sample meant to document the P4Info layout the Go
- * examples expect. It compiles with p4c against the v1model architecture:
- *
- *   p4c --target bmv2 --arch v1model \
- *     --p4runtime-files l2.p4info.txt -o build l2.p4
- *
- * which produces `l2.bmv2.json` (device config) and `l2.p4info.txt`
- * (P4Info text proto).
- */
-
 #include <core.p4>
 #include <v1model.p4>
 
-const bit<16> TYPE_IPV4 = 0x0800;
+const bit<9> CPU_PORT = 255;
 
 header ethernet_t {
     bit<48> dst;
@@ -22,44 +9,106 @@ header ethernet_t {
     bit<16> etherType;
 }
 
-struct headers_t { ethernet_t eth; }
+@id(1)
+@controller_header("packet_in")
+header packet_in_header_t {
+    bit<9> ingress_port;
+    bit<7> _pad;
+}
+
+@id(2)
+@controller_header("packet_out")
+header packet_out_header_t {
+    bit<9> egress_port;
+    bit<7> _pad;
+}
+
+struct headers_t {
+    packet_in_header_t packet_in;
+    packet_out_header_t packet_out;
+    ethernet_t eth;
+}
 struct metadata_t {}
 
-@controller_header("packet_in")
-header packet_in_header_t { bit<9> ingress_port; bit<7> _pad; }
-@controller_header("packet_out")
-header packet_out_header_t { bit<9> egress_port; bit<7> _pad; }
-
-parser MyParser(packet_in p, out headers_t h, inout metadata_t m,
+parser MyParser(packet_in p, out headers_t hdr, inout metadata_t m,
                 inout standard_metadata_t s) {
-    state start { p.extract(h.eth); transition accept; }
+    state start {
+        transition select(s.ingress_port) {
+            CPU_PORT: parse_packet_out;
+            default: parse_ethernet;
+        }
+    }
+    state parse_packet_out {
+        p.extract(hdr.packet_out);
+        transition parse_ethernet;
+    }
+    state parse_ethernet {
+        p.extract(hdr.eth);
+        transition accept;
+    }
 }
 
-control MyVerifyChecksum(inout headers_t h, inout metadata_t m) { apply {} }
-control MyComputeChecksum(inout headers_t h, inout metadata_t m) { apply {} }
+control MyVerifyChecksum(inout headers_t hdr, inout metadata_t m) {
+    apply {}
+}
 
-control MyIngress(inout headers_t h, inout metadata_t m,
+control MyComputeChecksum(inout headers_t hdr, inout metadata_t m) {
+    apply {}
+}
+
+control MyIngress(inout headers_t hdr, inout metadata_t m,
                   inout standard_metadata_t s) {
-    direct_counter(CounterType.packets_and_bytes) pkt_counter;
-    action drop() { mark_to_drop(s); }
-    action forward(bit<9> port) {
+    @id(1) counter(512, CounterType.packets_and_bytes) pkt_counter;
+    @id(1) direct_counter(CounterType.packets_and_bytes) pkt_counter_direct;
+
+    @id(4) action drop() { mark_to_drop(s); }
+    @id(3) action forward(bit<9> port) {
         s.egress_spec = port;
-        pkt_counter.count();
+        pkt_counter.count((bit<32>) port);
+        pkt_counter_direct.count();
     }
-    table t_l2 {
-        key = { h.eth.dst : exact; }
-        actions = { forward; drop; NoAction; }
-        default_action = NoAction();
-        counters = pkt_counter;
+    @id(5) action punt() { s.egress_spec = CPU_PORT; }
+
+    @id(1) table t_l2 {
+        key = { hdr.eth.dst : exact; }
+        actions = { forward; drop; @defaultonly punt; }
+        default_action = punt();
+        counters = pkt_counter_direct;
         size = 1024;
     }
-    apply { t_l2.apply(); }
+    apply {
+        if (s.parser_error != error.NoError || !hdr.eth.isValid()) {
+            drop();
+        } else if (hdr.packet_out.isValid()) {
+            s.egress_spec = hdr.packet_out.egress_port;
+            hdr.packet_out.setInvalid();
+        } else {
+            t_l2.apply();
+        }
+    }
 }
 
-control MyEgress(inout headers_t h, inout metadata_t m,
-                 inout standard_metadata_t s) { apply {} }
+control MyEgress(inout headers_t hdr, inout metadata_t m,
+                 inout standard_metadata_t s) {
+    apply {
+        if (s.egress_port == CPU_PORT) {
+            hdr.packet_in.setValid();
+            hdr.packet_in.ingress_port = s.ingress_port;
+            hdr.packet_in._pad = 0;
+        }
+    }
+}
 
-control MyDeparser(packet_out p, in headers_t h) { apply { p.emit(h.eth); } }
+control MyDeparser(packet_out p, in headers_t hdr) {
+    apply {
+        p.emit(hdr.packet_in);
+        p.emit(hdr.eth);
+    }
+}
 
-V1Switch(MyParser(), MyVerifyChecksum(), MyIngress(), MyEgress(),
-         MyComputeChecksum(), MyDeparser()) main;
+V1Switch(MyParser(),
+         MyVerifyChecksum(),
+         MyIngress(),
+         MyEgress(),
+         MyComputeChecksum(),
+         MyDeparser()) main;

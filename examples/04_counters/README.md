@@ -1,6 +1,6 @@
 # Example 04: counter read
 
-Reads every index of the named indirect counter and prints one line per entry.
+Reads the L2 program's indirect counter. Indexes correspond to egress ports. Run example 02 and send frames matching its entry before reading index 1. Both this counter and the table's direct counter count packets and bytes handled by the L2 forward action.
 
 ## Run
 
@@ -8,5 +8,7 @@ Reads every index of the named indirect counter and prints one line per entry.
 go run ./examples/04_counters \
     --addr 127.0.0.1:9559 \
     --p4info ./examples/testdata/l2.p4info.txt \
-    --counter ingress.pkt_counter
+    --counter MyIngress.pkt_counter --index 1
 ```
+
+Omit `--index` or use `--index -1` to read all 512 indexes.

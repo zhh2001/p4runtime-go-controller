@@ -42,6 +42,8 @@ _, err := c.SetPipeline(ctx, nil, client.SetPipelineOptions{
 
 `COMMIT` uses the last saved config on the target. It sends no new config and requires a successful prior save. Passing a non-nil pipeline with `COMMIT` is rejected locally. `VERIFY` and `VERIFY_AND_SAVE` never fall back to an installation action.
 
+BMv2 1.15.0-2bdd0b7b with PI 5689c91 cannot reconcile the bundled L2 pipeline's indirect counters. PI restores them using `INSERT`, and the target logs `INSERT update type not supported for counters`. The RPC returns `Error when reconciling config` and can leave the device in an unfinished update. Restart that target before installing with `VERIFY_AND_COMMIT`. Restarting and fresh installation clear forwarding state. Initial installation and counter reads work with this build.
+
 ## Write returns `Unknown`
 
 P4Runtime reports per-update failures with RPC code `Unknown` and ordered `p4.Error` details. Use `errors.Is(err, errs.ErrEntryExists)` or `errors.Is(err, errs.ErrEntryNotFound)` to classify known failures. In a batch, either match can refer to just one update.

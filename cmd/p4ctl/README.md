@@ -67,6 +67,12 @@ Expected output: `connected: device_id=1 election_id=0:1 state=primary primary=t
 
 ### 2. Push a pipeline
 
+Compile the L2 P4Info and device config together before installing them:
+
+```sh
+./scripts/compile-l2.sh
+```
+
 ```sh
 p4ctl pipeline set \
     --p4info ./examples/testdata/l2.p4info.txt \
@@ -109,8 +115,12 @@ For tables with TERNARY, RANGE, or OPTIONAL fields, pass the same positive `--pr
 
 ```sh
 p4ctl packet send --p4info ./examples/testdata/l2.p4info.txt \
-    --hex deadbeef --port 1
+    --hex 0011223344550066778899aa88b568656c6c6f20776f726c6400000000000000000000000000000000000000000000000000000000000000000000000000 --port 1
 ```
+
+The payload is a complete Ethernet frame. The L2 program uses CPU port 255 for Packet I/O, and BMv2 must bind a host-facing interface to output port 1.
+
+The command currently exits after queueing its request and can close the stream before transmission. Use [example 03](../../examples/03_packetio/README.md) to send PacketOut with a connection that stays open.
 
 ### 5. Read indirect counters
 

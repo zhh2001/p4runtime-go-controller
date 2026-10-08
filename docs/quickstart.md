@@ -1,7 +1,6 @@
 # Quickstart
 
-This guide walks through installing the SDK, bringing up a local BMv2 target,
-and writing your first table entry — start to finish.
+This guide walks through installing the SDK, bringing up a local BMv2 target, and writing your first table entry — start to finish.
 
 ## 1. Install
 
@@ -17,14 +16,15 @@ go install github.com/zhh2001/p4runtime-go-controller/cmd/p4ctl@latest
 
 ## 2. Bring up BMv2
 
-The repository ships a Docker wrapper that starts `simple_switch_grpc`:
+Compile the L2 P4Info and device config together, then start a native BMv2 target with device ID 1 and CPU port 255:
 
 ```sh
-./scripts/run-bmv2.sh -p 9559
+./scripts/compile-l2.sh
+simple_switch_grpc --no-p4 --device-id 1 \
+    -- --grpc-server-addr 127.0.0.1:9559 --cpu-port 255
 ```
 
-If you prefer to run BMv2 yourself, point the examples at whatever address it
-listens on.
+Keep the target running in another terminal. This command supports control plane operations. To send and receive traffic, bind host-facing interfaces as described in the [L2 fixture guide](../examples/testdata/README.md).
 
 ## 3. Your first program
 
@@ -74,6 +74,8 @@ entry, _ := tableentry.NewBuilder(p, "MyIngress.t_l2").
 c.WriteTableEntry(ctx, client.UpdateInsert, entry)
 ```
 
+Read `examples/testdata/l2.p4info.txt` and `examples/testdata/l2.bmv2.json` from the same compilation into `p4infoBytes` and `deviceConfigBytes`.
+
 ## 5. Subscribe to packet-ins
 
 ```go
@@ -83,6 +85,8 @@ sub.OnPacket(func(ctx context.Context, pkt *packetio.PacketIn) {
         pkt.Metadata["ingress_port"], len(pkt.Payload))
 })
 ```
+
+The bundled program sends unmatched Ethernet frames to the controller. PacketIn reports the original ingress port and Ethernet payload.
 
 ## Where to go next
 

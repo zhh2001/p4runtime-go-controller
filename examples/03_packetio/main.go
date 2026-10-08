@@ -70,10 +70,18 @@ func main() {
 	})
 
 	if *sendPort != 0 {
-		err := sub.Send(ctx, &packetio.PacketOut{
-			Payload: []byte("hello world"),
+		port, err := codec.EncodeUint(uint64(*sendPort), 9)
+		if err != nil {
+			log.Fatalf("send-port: %v", err)
+		}
+		frame := make([]byte, 60)
+		copy(frame, []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x00, 0x66, 0x77, 0x88, 0x99, 0xaa, 0x88, 0xb5})
+		copy(frame[14:], "hello world")
+		err = sub.Send(ctx, &packetio.PacketOut{
+			Payload: frame,
 			Metadata: map[string][]byte{
-				"egress_port": codec.MustEncodeUint(uint64(*sendPort), 9),
+				"egress_port": port,
+				"_pad":        {0},
 			},
 		})
 		if err != nil {

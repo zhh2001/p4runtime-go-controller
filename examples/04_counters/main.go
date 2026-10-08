@@ -21,7 +21,8 @@ func main() {
 		deviceID    = flag.Uint64("device-id", 1, "device ID")
 		election    = flag.Uint64("election", 1, "election ID low")
 		p4infoPath  = flag.String("p4info", "./examples/testdata/l2.p4info.txt", "path to p4info textproto")
-		counterName = flag.String("counter", "ingress.pkt_counter", "counter name")
+		counterName = flag.String("counter", "MyIngress.pkt_counter", "counter name")
+		index       = flag.Int64("index", -1, "egress port index (-1 = all)")
 	)
 	flag.Parse()
 
@@ -54,7 +55,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("reader: %v", err)
 	}
-	entries, err := r.Read(ctx, *counterName, -1)
+	entries, err := r.Read(ctx, *counterName, *index)
 	if err != nil {
 		log.Fatalf("read counter: %v", err)
 	}

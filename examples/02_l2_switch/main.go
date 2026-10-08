@@ -1,7 +1,7 @@
 // Command 02_l2_switch pushes a pipeline and populates a small L2 MAC table.
 // It assumes the target is BMv2 and the P4 program declares a table named
-// "ingress.t_l2" with one EXACT match on hdr.eth.dst and an action named
-// "ingress.forward(port)" taking a 9-bit egress port.
+// "MyIngress.t_l2" with one EXACT match on hdr.eth.dst and an action named
+// "MyIngress.forward(port)" taking a 9-bit egress port.
 package main
 
 import (
@@ -55,9 +55,9 @@ func main() {
 	log.Printf("pipeline installed via %v", res.Action)
 
 	// Populate a single L2 entry: hdr.eth.dst=00:11:22:33:44:55 → port 1.
-	entry, err := tableentry.NewBuilder(p, "ingress.t_l2").
+	entry, err := tableentry.NewBuilder(p, "MyIngress.t_l2").
 		Match("hdr.eth.dst", tableentry.Exact(codec.MustMAC("00:11:22:33:44:55"))).
-		Action("ingress.forward", tableentry.Param("port", codec.MustEncodeUint(1, 9))).
+		Action("MyIngress.forward", tableentry.Param("port", codec.MustEncodeUint(1, 9))).
 		Build()
 	if err != nil {
 		log.Fatalf("build entry: %v", err)

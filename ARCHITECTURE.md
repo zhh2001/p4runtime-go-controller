@@ -81,7 +81,7 @@ sequenceDiagram
     participant C as client.Client
     participant T as P4Runtime target
 
-    App->>B: NewEntry("ingress.t_l2").Match(...).Action(...).Build()
+    App->>B: NewBuilder(p, "MyIngress.t_l2").Match(...).Action(...).Build()
     B->>E: validated proto
     App->>C: Write(ctx, INSERT, E)
     C->>T: WriteRequest{election_id, updates=[...]}

@@ -1,15 +1,12 @@
-# Example 02: L2 learning switch seed
+# Example 02: L2 table
 
-Pushes a pipeline onto the target and seeds a single L2 MAC → port entry.
+Installs the L2 pipeline and writes an entry forwarding destination `00:11:22:33:44:55` to port 1.
 
 ## Prerequisites
 
-- A running P4Runtime target (typically BMv2 started via
-  [`scripts/run-bmv2.sh`](../../scripts/run-bmv2.sh)).
-- A P4 program that exposes an `ingress.t_l2` table with an EXACT match on
-  `hdr.eth.dst` and an `ingress.forward(port)` action (9-bit port). The
-  `examples/testdata/` directory ships a compatible `l2.p4info.txt` and
-  `l2.bmv2.json`.
+- Compile the bundled P4 program with `./scripts/compile-l2.sh`.
+- Start BMv2 with device ID 1 and CPU port 255 as described in [the fixture guide](../testdata/README.md).
+- Bind a host-facing interface to port 1 to receive forwarded frames.
 
 ## Run
 

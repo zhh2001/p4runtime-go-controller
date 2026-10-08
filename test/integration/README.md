@@ -16,7 +16,7 @@ go test -race -tags=integration -count=1 -run '^TestBMv2_FieldWidthMasks$' ./tes
 
 The tests cover full and partial prefixes, short masks, and padded inputs. Range cases include padded low and high endpoints, equal and zero endpoints, and values on either side of a byte boundary. Each entry is inserted, read back, and deleted. Both mask environment variables must be set to run this test. When neither is set, it is skipped.
 
-The L2 pipeline and arbitration tests use the existing `P4RT_P4INFO` and `P4RT_DEVICE_CONFIG` variables. Set both sets of pipeline variables to run the full integration suite against one target.
+The L2 pipeline and arbitration tests use `P4RT_P4INFO` and `P4RT_DEVICE_CONFIG`. Generate a matching pair with `./scripts/compile-l2.sh`, then set them to `examples/testdata/l2.p4info.txt` and `examples/testdata/l2.bmv2.json`. Set both sets of pipeline variables to run the full integration suite against one target.
 
 The L2 tests also check duplicate inserts, missing-entry modifications and deletions, and a partially successful batch. They verify the per-update error indices and read back the batch's successful insert. A separate test submits a stale election ID and checks that the target's permission response remains available.
 
@@ -54,3 +54,32 @@ go test -race -tags=integration -count=1 -run '^TestBMv2_TableCLI$' ./test/integ
 ```
 
 Set all three variables to include this test in the full suite. With none set, the CLI test is skipped. The test installs its pipeline and uses plaintext on a target with device ID 1.
+
+## L2 traffic and examples
+
+On Linux, `TestBMv2_L2Dataplane` sends real Ethernet frames through two host-facing interfaces. It checks L2 forwarding, unmatched-frame PacketIn, PacketOut on each port, direct and indirect counters, and the effect of deleting a forwarding entry. `TestBMv2_L2Examples` runs examples 02, 03, and 04, captures their actual traffic, checks the counter output, and stops the Packet I/O example with SIGINT.
+
+Start BMv2 with device ID 1, CPU port 255, and data ports 1 and 2 bound to the switch ends of two veth pairs. Set `P4RT_HOST_IFACE1` and `P4RT_HOST_IFACE2` to their host ends. The tests need permission to open raw Ethernet sockets. They leave interface and target creation to the caller.
+
+From the repository root:
+
+```bash
+./scripts/compile-l2.sh
+mkdir -p /tmp/p4runtime-integration
+go build -o /tmp/p4runtime-integration/l2-example ./examples/02_l2_switch
+go build -o /tmp/p4runtime-integration/packet-example ./examples/03_packetio
+go build -o /tmp/p4runtime-integration/counter-example ./examples/04_counters
+go test -c -race -tags=integration \
+  -o /tmp/p4runtime-integration/integration.test ./test/integration
+sudo env P4RT_TARGET=127.0.0.1:9559 \
+  P4RT_P4INFO="$PWD/examples/testdata/l2.p4info.txt" \
+  P4RT_DEVICE_CONFIG="$PWD/examples/testdata/l2.bmv2.json" \
+  P4RT_HOST_IFACE1=host1 P4RT_HOST_IFACE2=host2 \
+  P4RT_L2_EXAMPLE_BIN=/tmp/p4runtime-integration/l2-example \
+  P4RT_PACKET_EXAMPLE_BIN=/tmp/p4runtime-integration/packet-example \
+  P4RT_COUNTER_EXAMPLE_BIN=/tmp/p4runtime-integration/counter-example \
+  /tmp/p4runtime-integration/integration.test \
+  -test.v -test.run '^TestBMv2_L2(Dataplane|Examples)$'
+```
+
+Replace `host1` and `host2` with the host interface names. With no host interfaces configured, the Ethernet tests are skipped. Example binary paths are also required for the example test.

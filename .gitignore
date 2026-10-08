@@ -2,6 +2,7 @@
 /bin/
 /dist/
 /build/
+/examples/testdata/l2.bmv2.json
 # Root-level compiled CLI (must stay anchored so cmd/p4ctl/ source is NOT ignored).
 /p4ctl
 *.exe
