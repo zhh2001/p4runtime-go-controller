@@ -71,18 +71,13 @@ Handlers can register or cancel subscriptions, including their own. Changes appl
 
 ## SetPipeline fallback
 
-The fallback chain mirrors the spec recommendation:
+The default action is `VERIFY_AND_COMMIT`. When unsupported, it can fall back once to `RECONCILE_AND_COMMIT`. `NoFallback: true` disables this even when `Action` is omitted.
 
-1. `VERIFY_AND_COMMIT` (strict — verify + install)
-2. `RECONCILE_AND_COMMIT` (reconcile existing entries)
-3. `COMMIT` (non-verifying; last resort)
+Fallback requires gRPC `Unimplemented` or an `InvalidArgument` message explicitly identifying an unsupported RPC action. Errors about parser features, action parameters, or preserving forwarding state stop the call. Messages outside the recognized forms also stop the call. Unsupported actions match `ErrTargetUnsupported` while preserving the underlying gRPC error.
 
-Triggers that cause a fall-through:
+Explicit `VERIFY`, `VERIFY_AND_SAVE`, `COMMIT`, and `RECONCILE_AND_COMMIT` run only the requested action. A failed verification or save never installs a config. A failed reconciliation never falls back to an action that clears entries.
 
-- gRPC `Unimplemented`.
-- gRPC `InvalidArgument` with a message containing `not supported` or `unsupported action` (case-insensitive).
-
-All other errors bubble up unchanged so callers can tell the difference between "target doesn't know the action" and "pipeline blob is broken".
+`COMMIT` requires a nil pipeline and sends no `Config`. It commits the config already saved on the target by `VERIFY_AND_SAVE`. Other actions require a non-nil pipeline and send its P4Info and device config. Unknown action values are rejected before sending an RPC.
 
 ## Canonical bytes
 

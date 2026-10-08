@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
 	errs "github.com/zhh2001/p4runtime-go-controller/errors"
@@ -51,8 +52,7 @@ func TestSetPipeline_FallbackChain(t *testing.T) {
 	h := testutil.StartServer(t)
 	h.Mu.Lock()
 	h.SetPipelineErrByAction = map[p4v1.SetForwardingPipelineConfigRequest_Action]error{
-		p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT:    status.Error(codes.Unimplemented, "verify not supported"),
-		p4v1.SetForwardingPipelineConfigRequest_RECONCILE_AND_COMMIT: status.Error(codes.InvalidArgument, "action not supported on this target"),
+		p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT: status.Error(codes.Unimplemented, "verify not supported"),
 	}
 	h.Mu.Unlock()
 
@@ -65,36 +65,41 @@ func TestSetPipeline_FallbackChain(t *testing.T) {
 
 	res, err := c.SetPipeline(ctx, samplePipeline(t), client.SetPipelineOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, client.PipelineCommit, res.Action)
+	assert.Equal(t, client.PipelineReconcileAndCommit, res.Action)
 	assert.Equal(t, []client.SetPipelineAction{
 		client.PipelineVerifyAndCommit,
 		client.PipelineReconcileAndCommit,
-		client.PipelineCommit,
 	}, res.Attempted)
 }
 
 func TestSetPipeline_NoFallback(t *testing.T) {
-	h := testutil.StartServer(t)
-	h.Mu.Lock()
-	h.SetPipelineErrByAction = map[p4v1.SetForwardingPipelineConfigRequest_Action]error{
-		p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT: status.Error(codes.Unimplemented, "nope"),
+	for _, action := range []client.SetPipelineAction{0, client.PipelineVerifyAndCommit} {
+		t.Run(action.String(), func(t *testing.T) {
+			h := testutil.StartServer(t)
+			h.Mu.Lock()
+			h.SetPipelineErrByAction = map[p4v1.SetForwardingPipelineConfigRequest_Action]error{
+				p4v1.SetForwardingPipelineConfigRequest_VERIFY_AND_COMMIT: status.Error(codes.Unimplemented, "nope"),
+			}
+			h.Mu.Unlock()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			c, err := dialViaHarness(ctx, h)
+			require.NoError(t, err)
+			defer c.Close()
+			require.NoError(t, c.BecomePrimary(ctx))
+
+			res, err := c.SetPipeline(ctx, samplePipeline(t), client.SetPipelineOptions{
+				Action:     action,
+				NoFallback: true,
+			})
+			require.Error(t, err)
+			assert.Len(t, res.Attempted, 1)
+			assert.Contains(t, err.Error(), "Unimplemented")
+			assert.ErrorIs(t, err, errs.ErrTargetUnsupported)
+			assert.Equal(t, codes.Unimplemented, status.Code(err))
+		})
 	}
-	h.Mu.Unlock()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	c, err := dialViaHarness(ctx, h)
-	require.NoError(t, err)
-	defer c.Close()
-	require.NoError(t, c.BecomePrimary(ctx))
-
-	res, err := c.SetPipeline(ctx, samplePipeline(t), client.SetPipelineOptions{
-		Action:     client.PipelineVerifyAndCommit,
-		NoFallback: true,
-	})
-	require.Error(t, err)
-	assert.Len(t, res.Attempted, 1)
-	assert.Contains(t, err.Error(), "Unimplemented")
 }
 
 func TestSetPipeline_NonFallbackErrorBubbles(t *testing.T) {
@@ -134,6 +139,11 @@ func TestSetPipeline_RejectsWhenNotPrimary(t *testing.T) {
 
 	_, err = c.SetPipeline(ctx, samplePipeline(t), client.SetPipelineOptions{})
 	assert.ErrorIs(t, err, errs.ErrNotPrimary)
+	_, err = c.SetPipeline(ctx, nil, client.SetPipelineOptions{Action: client.PipelineCommit})
+	assert.ErrorIs(t, err, errs.ErrNotPrimary)
+	h.Mu.Lock()
+	defer h.Mu.Unlock()
+	assert.Empty(t, h.SetPipelineRequests)
 }
 
 func TestSetPipeline_NilPipeline(t *testing.T) {
@@ -147,6 +157,206 @@ func TestSetPipeline_NilPipeline(t *testing.T) {
 
 	_, err = c.SetPipeline(ctx, nil, client.SetPipelineOptions{})
 	assert.Error(t, err)
+}
+
+func TestSetPipeline_CommitSavedConfig(t *testing.T) {
+	h := testutil.StartServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, err := dialViaHarness(ctx, h)
+	require.NoError(t, err)
+	defer c.Close()
+	require.NoError(t, c.BecomePrimary(ctx))
+
+	res, err := c.SetPipeline(ctx, nil, client.SetPipelineOptions{Action: client.PipelineCommit})
+	require.NoError(t, err)
+	assert.Equal(t, client.PipelineCommit, res.Action)
+	assert.Equal(t, []client.SetPipelineAction{client.PipelineCommit}, res.Attempted)
+	h.Mu.Lock()
+	defer h.Mu.Unlock()
+	require.NotNil(t, h.SetPipelineReq)
+	assert.Nil(t, h.SetPipelineReq.Config)
+}
+
+func TestSetPipeline_SaveThenCommitRequests(t *testing.T) {
+	h := testutil.StartServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, err := dialViaHarness(ctx, h)
+	require.NoError(t, err)
+	defer c.Close()
+	p := samplePipeline(t)
+	res, err := c.SetPipeline(ctx, p, client.SetPipelineOptions{Action: client.PipelineVerifyAndSave})
+	require.NoError(t, err)
+	assert.Equal(t, client.PipelineVerifyAndSave, res.Action)
+	assert.Equal(t, []client.SetPipelineAction{client.PipelineVerifyAndSave}, res.Attempted)
+	res, err = c.SetPipeline(ctx, nil, client.SetPipelineOptions{Action: client.PipelineCommit})
+	require.NoError(t, err)
+	assert.Equal(t, client.PipelineCommit, res.Action)
+	assert.Equal(t, []client.SetPipelineAction{client.PipelineCommit}, res.Attempted)
+	h.Mu.Lock()
+	defer h.Mu.Unlock()
+	require.Len(t, h.SetPipelineRequests, 2)
+	assert.True(t, proto.Equal(p.Info(), h.SetPipelineRequests[0].GetConfig().GetP4Info()))
+	assert.Equal(t, p.DeviceConfig(), h.SetPipelineRequests[0].GetConfig().GetP4DeviceConfig())
+	assert.Nil(t, h.SetPipelineRequests[1].Config)
+	for _, req := range h.SetPipelineRequests {
+		assert.Equal(t, c.DeviceID(), req.GetDeviceId())
+		assert.Equal(t, c.ElectionID().High, req.GetElectionId().GetHigh())
+		assert.Equal(t, c.ElectionID().Low, req.GetElectionId().GetLow())
+	}
+}
+
+func TestSetPipeline_ExplicitActionsDoNotFallback(t *testing.T) {
+	for _, action := range []client.SetPipelineAction{client.PipelineVerify, client.PipelineVerifyAndSave, client.PipelineCommit, client.PipelineReconcileAndCommit} {
+		t.Run(action.String(), func(t *testing.T) {
+			h := testutil.StartServer(t)
+			h.Mu.Lock()
+			h.SetPipelineErrByAction = map[client.SetPipelineAction]error{action: status.Error(codes.Unimplemented, "action unsupported")}
+			h.Mu.Unlock()
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			c, err := dialViaHarness(ctx, h)
+			require.NoError(t, err)
+			defer c.Close()
+			p := samplePipeline(t)
+			if action == client.PipelineCommit {
+				p = nil
+			}
+			res, err := c.SetPipeline(ctx, p, client.SetPipelineOptions{Action: action})
+			require.ErrorIs(t, err, errs.ErrTargetUnsupported)
+			assert.Equal(t, codes.Unimplemented, status.Code(err))
+			assert.Equal(t, []client.SetPipelineAction{action}, res.Attempted)
+			h.Mu.Lock()
+			assert.Len(t, h.SetPipelineRequests, 1)
+			h.Mu.Unlock()
+		})
+	}
+}
+
+func TestSetPipeline_ExhaustsOnlyInstallActions(t *testing.T) {
+	h := testutil.StartServer(t)
+	h.Mu.Lock()
+	h.SetPipelineErrByAction = map[client.SetPipelineAction]error{
+		client.PipelineVerifyAndCommit:    status.Error(codes.Unimplemented, "action unsupported"),
+		client.PipelineReconcileAndCommit: status.Error(codes.InvalidArgument, "action not supported on this target"),
+	}
+	h.Mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, err := dialViaHarness(ctx, h)
+	require.NoError(t, err)
+	defer c.Close()
+	p := samplePipeline(t)
+	res, err := c.SetPipeline(ctx, p, client.SetPipelineOptions{})
+	require.ErrorIs(t, err, errs.ErrTargetUnsupported)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	assert.Zero(t, res.Action)
+	assert.Equal(t, []client.SetPipelineAction{client.PipelineVerifyAndCommit, client.PipelineReconcileAndCommit}, res.Attempted)
+	h.Mu.Lock()
+	defer h.Mu.Unlock()
+	require.Len(t, h.SetPipelineRequests, 2)
+	for _, req := range h.SetPipelineRequests {
+		assert.True(t, proto.Equal(p.Info(), req.GetConfig().GetP4Info()))
+		assert.Equal(t, p.DeviceConfig(), req.GetConfig().GetP4DeviceConfig())
+	}
+}
+
+func TestSetPipeline_FallbackPreservesFinalFailure(t *testing.T) {
+	h := testutil.StartServer(t)
+	finalErr := status.Error(codes.InvalidArgument, "forwarding state cannot be preserved")
+	h.Mu.Lock()
+	h.SetPipelineErrByAction = map[client.SetPipelineAction]error{
+		client.PipelineVerifyAndCommit:    status.Error(codes.Unimplemented, "action unsupported"),
+		client.PipelineReconcileAndCommit: finalErr,
+	}
+	h.Mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, err := dialViaHarness(ctx, h)
+	require.NoError(t, err)
+	defer c.Close()
+	res, err := c.SetPipeline(ctx, samplePipeline(t), client.SetPipelineOptions{})
+	require.ErrorIs(t, err, finalErr)
+	assert.NotErrorIs(t, err, errs.ErrTargetUnsupported)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	assert.Contains(t, err.Error(), "RECONCILE_AND_COMMIT")
+	assert.Equal(t, []client.SetPipelineAction{client.PipelineVerifyAndCommit, client.PipelineReconcileAndCommit}, res.Attempted)
+	h.Mu.Lock()
+	defer h.Mu.Unlock()
+	assert.Len(t, h.SetPipelineRequests, 2)
+}
+
+func TestSetPipeline_CommitMissingSavedConfig(t *testing.T) {
+	h := testutil.StartServer(t)
+	original := status.Error(codes.NotFound, "no saved config")
+	h.Mu.Lock()
+	h.SetPipelineErrByAction = map[client.SetPipelineAction]error{client.PipelineCommit: original}
+	h.Mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, err := dialViaHarness(ctx, h)
+	require.NoError(t, err)
+	defer c.Close()
+	res, err := c.SetPipeline(ctx, nil, client.SetPipelineOptions{Action: client.PipelineCommit})
+	require.ErrorIs(t, err, original)
+	assert.Equal(t, codes.NotFound, status.Code(err))
+	assert.Equal(t, []client.SetPipelineAction{client.PipelineCommit}, res.Attempted)
+	h.Mu.Lock()
+	defer h.Mu.Unlock()
+	assert.Len(t, h.SetPipelineRequests, 1)
+	assert.Nil(t, h.SetPipelineReq.Config)
+}
+
+func TestSetPipeline_InvalidActionOrConfigDoesNotSend(t *testing.T) {
+	h := testutil.StartServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, err := dialViaHarness(ctx, h)
+	require.NoError(t, err)
+	defer c.Close()
+	p := samplePipeline(t)
+	for _, tc := range []struct {
+		name   string
+		action client.SetPipelineAction
+		p      *pipeline.Pipeline
+	}{
+		{"COMMIT with config", client.PipelineCommit, p},
+		{"unknown action", 99, p},
+		{"negative action", -1, p},
+		{"default without config", 0, nil},
+		{"VERIFY without config", client.PipelineVerify, nil},
+		{"SAVE without config", client.PipelineVerifyAndSave, nil},
+		{"install without config", client.PipelineVerifyAndCommit, nil},
+		{"reconcile without config", client.PipelineReconcileAndCommit, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := c.SetPipeline(ctx, tc.p, client.SetPipelineOptions{Action: tc.action})
+			require.Error(t, err)
+			assert.Empty(t, res.Attempted)
+		})
+	}
+	h.Mu.Lock()
+	defer h.Mu.Unlock()
+	assert.Empty(t, h.SetPipelineRequests)
+}
+
+func TestSetPipeline_UnrelatedUnsupportedFeatureStops(t *testing.T) {
+	h := testutil.StartServer(t)
+	h.Mu.Lock()
+	h.SetPipelineErrByAction = map[client.SetPipelineAction]error{
+		client.PipelineVerifyAndCommit: status.Error(codes.InvalidArgument, "parser feature not supported"),
+	}
+	h.Mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, err := dialViaHarness(ctx, h)
+	require.NoError(t, err)
+	defer c.Close()
+	res, err := c.SetPipeline(ctx, samplePipeline(t), client.SetPipelineOptions{})
+	require.Error(t, err)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	assert.Equal(t, []client.SetPipelineAction{client.PipelineVerifyAndCommit}, res.Attempted)
 }
 
 func TestGetPipeline_NoConfig(t *testing.T) {

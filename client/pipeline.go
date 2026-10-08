@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -15,10 +14,8 @@ import (
 )
 
 // SetPipelineAction selects the SetForwardingPipelineConfig action that the
-// caller wants to attempt first. If the target does not support it, Client
-// falls back through RECONCILE_AND_COMMIT and finally COMMIT. Callers who
-// need a specific action without fallback can set NoFallback=true in
-// SetPipelineOptions.
+// caller wants to perform. VERIFY_AND_COMMIT can fall back to
+// RECONCILE_AND_COMMIT when unsupported. Other actions are attempted once.
 type SetPipelineAction = p4v1.SetForwardingPipelineConfigRequest_Action
 
 // Re-exported action constants for caller convenience.
@@ -32,9 +29,10 @@ const (
 
 // SetPipelineOptions tunes Client.SetPipeline.
 type SetPipelineOptions struct {
-	// Action is the first action to attempt. Defaults to VERIFY_AND_COMMIT.
+	// Action defaults to VERIFY_AND_COMMIT. COMMIT requires a nil pipeline.
 	Action SetPipelineAction
-	// NoFallback disables the automatic fallback chain.
+	// NoFallback disables VERIFY_AND_COMMIT's fallback to RECONCILE_AND_COMMIT,
+	// including when Action is left at its default value.
 	NoFallback bool
 }
 
@@ -48,37 +46,54 @@ type SetPipelineResult struct {
 	Attempted []SetPipelineAction
 }
 
-// SetPipeline pushes a pipeline.Pipeline onto the target. It honors the
+// SetPipeline performs a forwarding pipeline action on the target. It honors the
 // election ID and device ID configured on the Client.
 //
-// The fallback chain mirrors the recommendation in
-// `docs/troubleshooting.md`: start with VERIFY_AND_COMMIT (strictest), fall
-// back to RECONCILE_AND_COMMIT (permissive of in-flight state), then COMMIT
-// (non-verifying). A target that returns UNIMPLEMENTED triggers the
-// fallback; targets that return INVALID_ARGUMENT with the substring
-// "action" + "not supported" are also treated as fallback triggers. All
-// other errors bubble up unchanged.
+// COMMIT requires a nil pipeline and commits the target's previously saved
+// config. All other actions require a non-nil pipeline. VERIFY and
+// VERIFY_AND_SAVE do not install the config, and RECONCILE_AND_COMMIT never
+// falls back to an action that clears existing forwarding state.
+//
+// Unless NoFallback is set, an unsupported VERIFY_AND_COMMIT can fall back
+// to RECONCILE_AND_COMMIT. Only UNIMPLEMENTED or an INVALID_ARGUMENT message
+// explicitly identifying an unsupported RPC action permits fallback.
 func (c *Client) SetPipeline(ctx context.Context, p *pipeline.Pipeline, opts SetPipelineOptions) (SetPipelineResult, error) {
-	if p == nil {
-		return SetPipelineResult{}, fmt.Errorf("client.SetPipeline: %w", errors.New("nil pipeline"))
+	action := opts.Action
+	if action == 0 {
+		action = PipelineVerifyAndCommit
+	}
+	switch action {
+	case PipelineCommit:
+		if p != nil {
+			return SetPipelineResult{}, fmt.Errorf("client.SetPipeline: COMMIT requires a nil pipeline")
+		}
+	case PipelineVerify, PipelineVerifyAndSave, PipelineVerifyAndCommit, PipelineReconcileAndCommit:
+		if p == nil {
+			return SetPipelineResult{}, fmt.Errorf("client.SetPipeline: nil pipeline")
+		}
+	default:
+		return SetPipelineResult{}, fmt.Errorf("client.SetPipeline: invalid action %d", action)
 	}
 	if !c.IsPrimary() {
 		return SetPipelineResult{}, errs.ErrNotPrimary
 	}
 
-	actions := []SetPipelineAction{PipelineVerifyAndCommit, PipelineReconcileAndCommit, PipelineCommit}
-	if opts.Action != 0 {
-		actions = reorderActions(opts.Action, opts.NoFallback)
+	actions := []SetPipelineAction{action}
+	if action == PipelineVerifyAndCommit && !opts.NoFallback {
+		actions = append(actions, PipelineReconcileAndCommit)
 	}
 
-	cfg := &p4v1.ForwardingPipelineConfig{
-		P4Info:         p.Info(),
-		P4DeviceConfig: p.DeviceConfig(),
+	var cfg *p4v1.ForwardingPipelineConfig
+	if p != nil {
+		cfg = &p4v1.ForwardingPipelineConfig{
+			P4Info:         p.Info(),
+			P4DeviceConfig: p.DeviceConfig(),
+		}
 	}
 
 	var result SetPipelineResult
 	var lastErr error
-	for _, act := range actions {
+	for i, act := range actions {
 		result.Attempted = append(result.Attempted, act)
 		req := &p4v1.SetForwardingPipelineConfigRequest{
 			DeviceId: c.opts.deviceID,
@@ -95,15 +110,19 @@ func (c *Client) SetPipeline(ctx context.Context, p *pipeline.Pipeline, opts Set
 			result.Action = act
 			return result, nil
 		}
-		lastErr = err
-		if opts.NoFallback || !isFallbackError(err) {
-			return result, fmt.Errorf("SetForwardingPipelineConfig(%s): %w", actionName(act), err)
+		unsupported := isFallbackError(err, act)
+		if unsupported {
+			err = fmt.Errorf("%w: %w", errs.ErrTargetUnsupported, err)
+		}
+		lastErr = fmt.Errorf("SetForwardingPipelineConfig(%s): %w", actionName(act), err)
+		if !unsupported || i == len(actions)-1 {
+			break
 		}
 		c.opts.logger.InfoContext(ctx, "p4runtime: SetForwardingPipelineConfig fallback",
 			"failed_action", actionName(act),
 			"error", err.Error())
 	}
-	return result, fmt.Errorf("SetForwardingPipelineConfig exhausted actions: %w", lastErr)
+	return result, lastErr
 }
 
 // GetPipeline fetches the forwarding pipeline currently active on the
@@ -125,22 +144,7 @@ func (c *Client) GetPipeline(ctx context.Context) (*pipeline.Pipeline, error) {
 	return pipeline.New(cfg.GetP4Info(), cfg.GetP4DeviceConfig())
 }
 
-func reorderActions(preferred SetPipelineAction, noFallback bool) []SetPipelineAction {
-	if noFallback {
-		return []SetPipelineAction{preferred}
-	}
-	chain := []SetPipelineAction{PipelineVerifyAndCommit, PipelineReconcileAndCommit, PipelineCommit}
-	out := []SetPipelineAction{preferred}
-	for _, a := range chain {
-		if a == preferred {
-			continue
-		}
-		out = append(out, a)
-	}
-	return out
-}
-
-func isFallbackError(err error) bool {
+func isFallbackError(err error, action SetPipelineAction) bool {
 	st, ok := status.FromError(err)
 	if !ok {
 		return false
@@ -150,8 +154,18 @@ func isFallbackError(err error) bool {
 		return true
 	case codes.InvalidArgument:
 		msg := strings.ToLower(st.Message())
-		return strings.Contains(msg, "not supported") ||
-			strings.Contains(msg, "unsupported action")
+		msg = strings.NewReplacer(":", " ", "'", "", "\"", "").Replace(msg)
+		msg = strings.Trim(strings.Join(strings.Fields(msg), " "), " .")
+		for _, suffix := range []string{" on this target", " on the target", " by this target", " by the target"} {
+			msg = strings.TrimSuffix(msg, suffix)
+		}
+		name := strings.ToLower(actionName(action))
+		for _, subject := range []string{"action", name, "action " + name, "setforwardingpipelineconfig action", "setforwardingpipelineconfig action " + name} {
+			if msg == "unsupported "+subject || msg == subject+" not supported" || msg == subject+" is not supported" ||
+				msg == subject+" unsupported" || msg == subject+" is unsupported" {
+				return true
+			}
+		}
 	}
 	return false
 }

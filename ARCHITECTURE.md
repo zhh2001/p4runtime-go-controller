@@ -60,13 +60,15 @@ sequenceDiagram
     C->>T: SetForwardingPipelineConfig(VERIFY_AND_COMMIT)
     alt target supports VERIFY_AND_COMMIT
         T-->>C: OK
-    else fallback
-        T-->>C: UNIMPLEMENTED | INVALID_ARGUMENT
+    else action unsupported and fallback enabled
+        T-->>C: UNIMPLEMENTED | explicit unsupported action
         C->>T: SetForwardingPipelineConfig(RECONCILE_AND_COMMIT)
-        T-->>C: OK | fallback to COMMIT
+        T-->>C: OK | error
     end
-    C-->>App: PipelineResult{action, info}
+    C-->>App: SetPipelineResult{Action, Attempted}, error
 ```
+
+`VERIFY_AND_COMMIT` can fall back to `RECONCILE_AND_COMMIT` when unsupported. `NoFallback` disables this, including for the default action. Explicit `VERIFY`, `VERIFY_AND_SAVE`, `COMMIT`, and `RECONCILE_AND_COMMIT` run once. `COMMIT` accepts a nil pipeline and sends no config. It commits the target's previously saved config.
 
 ## Table Write
 

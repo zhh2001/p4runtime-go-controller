@@ -44,8 +44,8 @@ p4ctl pipeline set \
     --config ./examples/testdata/l2.bmv2.json
 ```
 
-The CLI walks the fallback chain (`VERIFY_AND_COMMIT` → `RECONCILE_AND_COMMIT`
-→ `COMMIT`) automatically and reports which action succeeded.
+The CLI tries `VERIFY_AND_COMMIT`, then `RECONCILE_AND_COMMIT` if the first
+action is explicitly unsupported. It reports which action succeeded.
 
 ### 3. Insert a table entry
 

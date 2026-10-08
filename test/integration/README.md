@@ -20,6 +20,8 @@ The L2 pipeline and arbitration tests use the existing `P4RT_P4INFO` and `P4RT_D
 
 The L2 tests also check duplicate inserts, missing-entry modifications and deletions, and a partially successful batch. They verify the per-update error indices and read back the batch's successful insert. A separate test submits a stale election ID and checks that the target's permission response remains available.
 
+`TestBMv2_PipelineActions` saves the config from `testdata/masks.p4`, writes a TERNARY entry, then commits with no config. It reads back the saved config and entry. It also checks that `VERIFY` and `RECONCILE_AND_COMMIT` retain the entry, while `VERIFY_AND_COMMIT` clears it. This test uses `P4RT_MASK_P4INFO` and `P4RT_MASK_DEVICE_CONFIG`, which must come from the same compilation.
+
 To check writes before pipeline installation, start a fresh target and run this test separately, before the rest of the suite:
 
 ```bash

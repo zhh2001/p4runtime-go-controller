@@ -16,10 +16,25 @@ The client lost primary status (stream drop + re-arbitration, or another control
 
 ## SetForwardingPipelineConfig keeps failing
 
-The SDK walks `VERIFY_AND_COMMIT → RECONCILE_AND_COMMIT → COMMIT`. If every step fails, the final error is returned. Typical root causes:
+The default call tries `VERIFY_AND_COMMIT`, then `RECONCILE_AND_COMMIT` only if the first action is explicitly unsupported. If both fail, the final error is returned. `NoFallback: true` disables the second attempt. Typical root causes:
 
 - P4Info bytes do not match the compiled pipeline blob. Re-run `p4c` to produce a matching pair.
-- The target dislikes `RECONCILE_AND_COMMIT` on first boot — pass `client.SetPipelineOptions{Action: client.PipelineCommit}` once to seed the pipeline, then switch back to the default.
+- The target cannot preserve existing entries for the supplied config. An explicit `RECONCILE_AND_COMMIT` does not fall back to clearing those entries. Choose `VERIFY_AND_COMMIT` separately if clearing them is intended.
+
+For a separate save and commit, first save the config, check the result, then commit with a nil pipeline:
+
+```go
+if _, err := c.SetPipeline(ctx, p, client.SetPipelineOptions{
+    Action: client.PipelineVerifyAndSave,
+}); err != nil {
+    return err
+}
+_, err := c.SetPipeline(ctx, nil, client.SetPipelineOptions{
+    Action: client.PipelineCommit,
+})
+```
+
+`COMMIT` uses the last saved config on the target. It sends no new config and requires a successful prior save. Passing a non-nil pipeline with `COMMIT` is rejected locally. `VERIFY` and `VERIFY_AND_SAVE` never fall back to an installation action.
 
 ## Write returns `Unknown`
 

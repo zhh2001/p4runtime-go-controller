@@ -37,6 +37,7 @@ type MockServer struct {
 	WriteRequests          []*p4v1.WriteRequest
 	LastCapabilitiesReq    *p4v1.CapabilitiesRequest
 	SetPipelineReq         *p4v1.SetForwardingPipelineConfigRequest
+	SetPipelineRequests    []*p4v1.SetForwardingPipelineConfigRequest
 	GetPipelineResp        *p4v1.GetForwardingPipelineConfigResponse
 	OverrideWriteErr       error
 	OverrideReadResp       []*p4v1.ReadResponse
@@ -186,6 +187,7 @@ func (m *MockServer) Capabilities(_ context.Context, req *p4v1.CapabilitiesReque
 func (m *MockServer) SetForwardingPipelineConfig(_ context.Context, req *p4v1.SetForwardingPipelineConfigRequest) (*p4v1.SetForwardingPipelineConfigResponse, error) {
 	m.Mu.Lock()
 	m.SetPipelineReq = req
+	m.SetPipelineRequests = append(m.SetPipelineRequests, req)
 	m.SetPipelineAttempts = append(m.SetPipelineAttempts, req.GetAction())
 	err := m.SetPipelineErrByAction[req.GetAction()]
 	m.Mu.Unlock()
