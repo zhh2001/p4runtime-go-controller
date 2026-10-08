@@ -130,12 +130,14 @@ func (c *Client) ReadTableEntries(ctx context.Context, tableID uint32) ([]*p4v1.
 
 // Read issues a P4Runtime ReadRequest with the supplied entities and
 // collects every streamed response into a single slice of entities.
+// It sends the configured role and does not require primary status.
 func (c *Client) Read(ctx context.Context, entities ...*p4v1.Entity) ([]*p4v1.Entity, error) {
 	if len(entities) == 0 {
 		return nil, errors.New("client.Read: no entities supplied")
 	}
 	req := &p4v1.ReadRequest{
 		DeviceId: c.opts.deviceID,
+		Role:     c.opts.role,
 		Entities: entities,
 	}
 	stream, err := c.rpc.Read(ctx, req)

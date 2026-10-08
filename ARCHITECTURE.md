@@ -144,6 +144,12 @@ Logging uses `log/slog`. Callers can provide a logger and gRPC interceptors thro
 
 `ElectionID` stores a 128-bit unsigned value as `High` and `Low`. Comparisons use the high half first. `Increment` returns false at the maximum value and leaves the value unchanged, avoiding an accidental wrap to zero.
 
+### Roles
+
+`WithRole` applies the same name to arbitration, Write, Read and SetPipeline. The empty name selects the default full-access role. Read carries the name in `ReadRequest.role`, including wildcard reads and calls through the resource wrappers. Reading does not require primary status, and a rejected read is not retried with an empty role.
+
+Read role filtering was introduced in [P4Runtime 1.4](https://github.com/p4lang/p4runtime/blob/v1.5.0/proto/p4/v1/p4runtime.proto). The target defines and enforces each role's scope. Targets that ignore this field can return entries outside that scope. The SDK does not filter responses locally or negotiate role support.
+
 ### Target capabilities
 
 Write requests expose the P4Runtime atomicity setting. Support for rollback, data plane atomicity, and pipeline reconciliation depends on the target. Applications must handle unsupported operations.

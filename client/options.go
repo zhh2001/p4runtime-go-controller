@@ -73,8 +73,9 @@ func WithElectionID(id ElectionID) Option {
 	return func(o *options) { o.electionID = id }
 }
 
-// WithRole sets the role name sent alongside arbitration. The default is the
-// empty string, which the target interprets as the full-access role.
+// WithRole sets the role name sent in arbitration, Write, Read and SetPipeline.
+// The default is the empty string, which selects the full-access role.
+// Read role filtering requires target support for P4Runtime 1.4+.
 func WithRole(name string) Option {
 	return func(o *options) { o.role = name }
 }
