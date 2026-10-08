@@ -190,32 +190,26 @@ func (c *Client) IsPrimary() bool { return c.sup.IsPrimary() }
 
 // Events returns a receive-only channel of mastership transitions. The
 // channel is closed after Close.
+// Events may be dropped when the buffer is full. BecomePrimary observes
+// current state independently of this channel.
 func (c *Client) Events() <-chan Event { return c.events }
 
 // BecomePrimary blocks until the client observes StatePrimary or ctx is done.
 // It returns nil on success, ctx.Err() on cancellation, or ErrStreamClosed if
 // Close is invoked while waiting.
 func (c *Client) BecomePrimary(ctx context.Context) error {
-	if c.ctx.Err() != nil {
-		return errs.ErrStreamClosed
-	}
-	if c.IsPrimary() {
-		return nil
-	}
 	for {
+		if c.ctx.Err() != nil {
+			return errs.ErrStreamClosed
+		}
+		state, changed := c.sup.WatchState()
+		if state == stream.StatePrimary {
+			return nil
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case ev, ok := <-c.events:
-			if !ok {
-				return errs.ErrStreamClosed
-			}
-			if ev.State == StatePrimary {
-				if c.ctx.Err() != nil {
-					return errs.ErrStreamClosed
-				}
-				return nil
-			}
+		case <-changed:
 		case <-c.ctx.Done():
 			return errs.ErrStreamClosed
 		case <-c.closed:

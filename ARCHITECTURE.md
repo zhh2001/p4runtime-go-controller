@@ -109,6 +109,7 @@ sequenceDiagram
 - `internal/stream.Supervisor` runs a send loop and a receive goroutine for each connected stream.
 - The main loop applies arbitration updates and publishes state events. It closes the event channel after canceling the active stream.
 - Primary status follows the observable state. Disconnect, reconnect, and shutdown revoke mastership. A new stream must complete arbitration before it can be primary.
+- `BecomePrimary` reads a state snapshot and waits on a change notification shared by all waiters. `Events` uses a separate bounded queue for observers.
 - Packet, digest, and idle timeout handlers run in the receive goroutine. Handlers should return quickly and send slow work to a worker or channel.
 - A handler can call `Client.Close`. Close does not wait for a handler already in progress. The receive goroutine exits when the handler returns.
 

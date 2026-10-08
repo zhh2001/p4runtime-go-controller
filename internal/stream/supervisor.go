@@ -89,6 +89,7 @@ type Supervisor struct {
 	mu      sync.RWMutex
 	state   State
 	lastErr error
+	changed chan struct{}
 
 	events  chan Event
 	sendCh  chan *p4v1.StreamMessageRequest
@@ -118,6 +119,7 @@ func New(cfg Config, dial Dialer, onPkt PacketHandler) *Supervisor {
 		onPkt:   onPkt,
 		log:     cfg.Logger,
 		state:   StateDisconnected,
+		changed: make(chan struct{}),
 		events:  make(chan Event, 16),
 		sendCh:  make(chan *p4v1.StreamMessageRequest, 16),
 		stop:    make(chan struct{}),
@@ -134,6 +136,15 @@ func (s *Supervisor) State() State {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.state
+}
+
+// WatchState returns the current state and a channel closed on the next state
+// change. Reading both under the same lock prevents a missed notification
+// between checking the state and waiting.
+func (s *Supervisor) WatchState() (State, <-chan struct{}) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state, s.changed
 }
 
 // IsPrimary reports whether the supervisor currently holds primary mastership
@@ -344,7 +355,11 @@ func (s *Supervisor) applyArbitration(arb *p4v1.MasterArbitrationUpdate) {
 
 func (s *Supervisor) setState(st State, err error) {
 	s.mu.Lock()
-	s.state = st
+	if s.state != st {
+		s.state = st
+		close(s.changed)
+		s.changed = make(chan struct{})
+	}
 	s.lastErr = err
 	s.mu.Unlock()
 	select {

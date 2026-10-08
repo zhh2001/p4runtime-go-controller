@@ -5,6 +5,7 @@ package integration
 import (
 	"context"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -86,4 +87,76 @@ func TestBMv2_ConnectAndSetPipeline(t *testing.T) {
 	require.False(t, c.IsPrimary())
 	require.ErrorIs(t, c.WriteTableEntry(ctx, client.UpdateModify, entry), errs.ErrNotPrimary)
 	require.ErrorIs(t, c.BecomePrimary(ctx), errs.ErrStreamClosed)
+}
+
+func TestBMv2_ConcurrentPrimaryWaiters(t *testing.T) {
+	if deviceConfigPath() == "" {
+		t.Skip("P4RT_DEVICE_CONFIG unset; skipping live arbitration")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	dial := func(id uint64) *client.Client {
+		c, err := client.Dial(ctx, targetAddr(),
+			client.WithDeviceID(1),
+			client.WithElectionID(client.ElectionID{Low: id}),
+			client.WithInsecure(),
+		)
+		require.NoError(t, err)
+		return c
+	}
+	lower := dial(10)
+	defer lower.Close()
+	require.True(t, lower.IsPrimary())
+	higher := dial(20)
+	defer higher.Close()
+	require.True(t, higher.IsPrimary())
+	require.Eventually(t, func() bool {
+		return lower.State() == client.StateBackup
+	}, time.Second, 10*time.Millisecond)
+
+	waitCtx, stopWait := context.WithTimeout(ctx, 100*time.Millisecond)
+	require.ErrorIs(t, lower.BecomePrimary(waitCtx), context.DeadlineExceeded)
+	stopWait()
+
+	var primaryEvents atomic.Int32
+	backupSeen := make(chan struct{})
+	go func() {
+		seenBackup := false
+		for ev := range lower.Events() {
+			if ev.State == client.StatePrimary {
+				primaryEvents.Add(1)
+			}
+			if ev.State == client.StateBackup && !seenBackup {
+				seenBackup = true
+				close(backupSeen)
+			}
+		}
+	}()
+	select {
+	case <-backupSeen:
+	case <-ctx.Done():
+		t.Fatal("event consumer did not observe backup state")
+	}
+	before := primaryEvents.Load()
+	require.Greater(t, before, int32(0))
+	const count = 16
+	ready := make(chan struct{}, count)
+	results := make(chan error, count)
+	for range count {
+		go func() {
+			ready <- struct{}{}
+			results <- lower.BecomePrimary(ctx)
+		}()
+	}
+	for range count {
+		<-ready
+	}
+	require.NoError(t, higher.Close())
+	for range count {
+		require.NoError(t, <-results)
+	}
+	require.True(t, lower.IsPrimary())
+	require.Eventually(t, func() bool {
+		return primaryEvents.Load() > before
+	}, time.Second, 10*time.Millisecond)
 }
