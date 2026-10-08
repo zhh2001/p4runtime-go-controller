@@ -2,9 +2,8 @@
 // p4runtime-go-controller SDK so external callers can produce wire
 // values without reaching into an internal package.
 //
-// All helpers follow the P4Runtime 1.3.0 canonical encoding rule:
-// integer-typed byte strings have no leading zero bytes; the value
-// zero is encoded as an empty byte slice.
+// Integer encoders follow the P4Runtime canonical encoding rule: unsigned
+// values have no redundant leading zero bytes. Zero uses a single zero byte.
 package codec
 
 import (
@@ -23,14 +22,14 @@ func MustEncodeUint(v uint64, bitwidth int) []byte {
 	return internalcodec.MustEncodeUint(v, bitwidth)
 }
 
-// EncodeBytes canonicalises a big-endian byte string for the declared
-// bit width.
+// EncodeBytes normalizes a big-endian byte string for the declared bit width.
+// Nil, empty, and all-zero inputs produce a single zero byte.
 func EncodeBytes(value []byte, bitwidth int) ([]byte, error) {
 	return internalcodec.EncodeBytes(value, bitwidth)
 }
 
-// DecodeUint interprets a canonical byte string as uint64. An empty
-// slice decodes to zero.
+// DecodeUint interprets a big-endian byte string as uint64. Empty input is
+// accepted as zero for compatibility.
 func DecodeUint(b []byte) (uint64, error) {
 	return internalcodec.DecodeUint(b)
 }
@@ -67,15 +66,14 @@ func MustIPv6(s string) []byte {
 }
 
 // LPMMask truncates value to prefixLen bits and returns the canonical
-// encoding. prefixLen must be in [0, bitwidth]; a zero prefix yields an
-// empty slice (caller should omit the match field entirely in that
-// case).
+// encoding. prefixLen must be in [0, bitwidth]. A zero prefix returns a
+// single zero byte, and the caller should omit the match field entirely.
 func LPMMask(value []byte, prefixLen int, bitwidth int) ([]byte, error) {
 	return internalcodec.LPMMask(value, prefixLen, bitwidth)
 }
 
 // TernaryMask builds a prefix-style ternary mask with the top prefixLen
-// bits set.
+// bits set. A zero prefix returns a single zero byte.
 func TernaryMask(prefixLen, bitwidth int) ([]byte, error) {
 	return internalcodec.TernaryMask(prefixLen, bitwidth)
 }

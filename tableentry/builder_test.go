@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	p4configv1 "github.com/p4lang/p4runtime/go/p4/config/v1"
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
@@ -80,6 +81,127 @@ func TestBuilder_Exact(t *testing.T) {
 	assert.EqualValues(t, 10, act.ActionId)
 	require.Len(t, act.Params, 1)
 	assert.Equal(t, []byte{0x01}, act.Params[0].Value)
+}
+
+func roundTripEntry(t *testing.T, entry *p4v1.TableEntry) *p4v1.TableEntry {
+	t.Helper()
+	wire, err := proto.Marshal(entry)
+	require.NoError(t, err)
+	decoded := &p4v1.TableEntry{}
+	require.NoError(t, proto.Unmarshal(wire, decoded))
+	return decoded
+}
+
+func TestBuilder_ZeroExactAndAction(t *testing.T) {
+	p := fixturePipeline(t)
+	entry, err := tableentry.NewBuilder(p, "ingress.t_exact").
+		Match("hdr.eth.dst", tableentry.Exact(codec.MustMAC("00:00:00:00:00:00"))).
+		Action("forward", tableentry.Param("port", codec.MustEncodeUint(0, 9))).
+		Build()
+	require.NoError(t, err)
+	entry = roundTripEntry(t, entry)
+	require.Len(t, entry.Match, 1)
+	require.NotNil(t, entry.Match[0].GetExact())
+	require.Equal(t, []byte{0x00}, entry.Match[0].GetExact().Value)
+	require.Len(t, entry.GetAction().GetAction().Params, 1)
+	require.Equal(t, []byte{0x00}, entry.GetAction().GetAction().Params[0].Value)
+}
+
+func TestBuilder_ZeroMaskedMatches(t *testing.T) {
+	p := fixturePipeline(t)
+	entry, err := tableentry.NewBuilder(p, "ingress.t_lpm").
+		Match("hdr.ipv4.dst", tableentry.LPM(codec.MustIPv4("0.0.0.1"), 8)).
+		Action("forward", tableentry.Param("port", []byte{0x01})).
+		Build()
+	require.NoError(t, err)
+	entry = roundTripEntry(t, entry)
+	require.Len(t, entry.Match, 1)
+	require.NotNil(t, entry.Match[0].GetLpm())
+	require.EqualValues(t, 8, entry.Match[0].GetLpm().PrefixLen)
+	require.Equal(t, []byte{0x00}, entry.Match[0].GetLpm().Value)
+
+	entry, err = tableentry.NewBuilder(p, "ingress.t_tcam").
+		Match("hdr.ipv4.dst", tableentry.Ternary([]byte{0x01}, []byte{0xff, 0x00, 0x00, 0x00})).
+		Action("forward", tableentry.Param("port", []byte{0x01})).
+		Priority(10).
+		Build()
+	require.NoError(t, err)
+	entry = roundTripEntry(t, entry)
+	require.Len(t, entry.Match, 1)
+	require.NotNil(t, entry.Match[0].GetTernary())
+	require.Equal(t, []byte{0x00}, entry.Match[0].GetTernary().Value)
+	require.Equal(t, []byte{0xff, 0x00, 0x00, 0x00}, entry.Match[0].GetTernary().Mask)
+}
+
+func TestBuilder_ZeroRangeAndOptional(t *testing.T) {
+	p := fixturePipeline(t)
+	entry, err := tableentry.NewBuilder(p, "ingress.t_tcam").
+		Match("hdr.tcp.port", tableentry.Range([]byte{0x00}, []byte{0x00})).
+		Match("hdr.meta.tag", tableentry.Optional(codec.MustEncodeUint(0, 8))).
+		Action("forward", tableentry.Param("port", []byte{0x01})).
+		Priority(10).
+		Build()
+	require.NoError(t, err)
+	entry = roundTripEntry(t, entry)
+	require.Len(t, entry.Match, 2)
+	require.NotNil(t, entry.Match[0].GetRange())
+	require.Equal(t, []byte{0x00}, entry.Match[0].GetRange().Low)
+	require.Equal(t, []byte{0x00}, entry.Match[0].GetRange().High)
+	require.NotNil(t, entry.Match[1].GetOptional())
+	require.Equal(t, []byte{0x00}, entry.Match[1].GetOptional().Value)
+}
+
+func TestBuilder_OptionalZeroAndWildcard(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value []byte
+	}{
+		{name: "wildcard", value: nil},
+		{name: "empty zero", value: []byte{}},
+		{name: "single zero", value: []byte{0x00}},
+		{name: "padded zero", value: []byte{0x00, 0x00}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			entry, err := tableentry.NewBuilder(fixturePipeline(t), "ingress.t_tcam").
+				Match("hdr.meta.tag", tableentry.Optional(tc.value)).
+				Action("forward", tableentry.Param("port", []byte{0x01})).
+				Priority(10).
+				Build()
+			require.NoError(t, err)
+			entry = roundTripEntry(t, entry)
+			if tc.value == nil {
+				require.Empty(t, entry.Match)
+				return
+			}
+			require.Len(t, entry.Match, 1)
+			require.NotNil(t, entry.Match[0].GetOptional())
+			require.Equal(t, []byte{0x00}, entry.Match[0].GetOptional().Value)
+		})
+	}
+}
+
+func TestBuilder_ZeroMaskHelpersKeepWildcards(t *testing.T) {
+	p := fixturePipeline(t)
+	value, err := codec.LPMMask([]byte{0xff}, 0, 32)
+	require.NoError(t, err)
+	require.Equal(t, []byte{0x00}, value)
+	entry, err := tableentry.NewBuilder(p, "ingress.t_lpm").
+		Match("hdr.ipv4.dst", tableentry.LPM(value, 0)).
+		Action("forward", tableentry.Param("port", []byte{0x01})).
+		Build()
+	require.NoError(t, err)
+	require.Empty(t, roundTripEntry(t, entry).Match)
+
+	mask, err := codec.TernaryMask(0, 32)
+	require.NoError(t, err)
+	require.Equal(t, []byte{0x00}, mask)
+	entry, err = tableentry.NewBuilder(p, "ingress.t_tcam").
+		Match("hdr.ipv4.dst", tableentry.Ternary([]byte{0xff}, mask)).
+		Action("forward", tableentry.Param("port", []byte{0x01})).
+		Priority(10).
+		Build()
+	require.NoError(t, err)
+	require.Empty(t, roundTripEntry(t, entry).Match)
 }
 
 func TestBuilder_LPM(t *testing.T) {

@@ -60,6 +60,6 @@ pipelines, or send packet-outs. Backups may read.
 
 **Mastership** — Shorthand for the primary/backup state machine.
 
-**Canonical bytes** — P4Runtime 1.3.0 convention requiring byte-string
-integer values to be stored with no leading zero bytes. The zero value is
-encoded as an empty byte slice.
+**Canonical bytes** — P4Runtime 1.3.0 canonical encoding represents an unsigned
+integer as the shortest nonempty big-endian byte string. Zero uses a single
+zero byte (`00`).

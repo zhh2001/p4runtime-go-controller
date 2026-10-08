@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
 	errs "github.com/zhh2001/p4runtime-go-controller/errors"
@@ -81,6 +83,42 @@ func TestBMv2_ConnectAndSetPipeline(t *testing.T) {
 	entries, err := c.ReadTableEntries(ctx, entry.GetTableId())
 	require.NoError(t, err)
 	require.NotEmpty(t, entries)
+
+	t.Run("zero match and action parameter", func(t *testing.T) {
+		zero, err := tableentry.NewBuilder(p, "MyIngress.t_l2").
+			Match("hdr.eth.dst", tableentry.Exact(codec.MustMAC("00:00:00:00:00:00"))).
+			Action("MyIngress.forward", tableentry.Param("port", codec.MustEncodeUint(0, 9))).
+			Build()
+		require.NoError(t, err)
+		require.Equal(t, []byte{0x00}, zero.Match[0].GetExact().Value)
+		require.Equal(t, []byte{0x00}, zero.GetAction().GetAction().Params[0].Value)
+		require.NoError(t, c.WriteTableEntry(ctx, client.UpdateInsert, zero))
+
+		entries, err := c.ReadTableEntries(ctx, zero.GetTableId())
+		require.NoError(t, err)
+		var stored *p4v1.TableEntry
+		for _, candidate := range entries {
+			if len(candidate.Match) == 1 && proto.Equal(candidate.Match[0], zero.Match[0]) {
+				stored = candidate
+				break
+			}
+		}
+		require.NotNil(t, stored, "zero-valued entry was not returned by the target")
+		require.Len(t, stored.GetAction().GetAction().Params, 1)
+		require.Equal(t, zero.GetAction().GetAction().ActionId, stored.GetAction().GetAction().ActionId)
+		require.Equal(t, zero.GetAction().GetAction().Params[0].ParamId, stored.GetAction().GetAction().Params[0].ParamId)
+		require.Equal(t, []byte{0x00}, stored.GetAction().GetAction().Params[0].Value)
+
+		key := &p4v1.TableEntry{TableId: zero.TableId, Match: zero.Match}
+		require.NoError(t, c.WriteTableEntry(ctx, client.UpdateDelete, key))
+		entries, err = c.ReadTableEntries(ctx, zero.GetTableId())
+		require.NoError(t, err)
+		for _, candidate := range entries {
+			if len(candidate.Match) == 1 {
+				require.False(t, proto.Equal(candidate.Match[0], zero.Match[0]), "zero-valued entry remains after deletion")
+			}
+		}
+	})
 
 	require.NoError(t, c.Close())
 	require.Equal(t, client.StateDisconnected, c.State())

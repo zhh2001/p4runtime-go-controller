@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
+	"github.com/zhh2001/p4runtime-go-controller/codec"
 	"github.com/zhh2001/p4runtime-go-controller/internal/testutil"
 	"github.com/zhh2001/p4runtime-go-controller/packetio"
 	"github.com/zhh2001/p4runtime-go-controller/pipeline"
@@ -158,4 +159,42 @@ func TestPacketOut_UnknownMetadata(t *testing.T) {
 		Metadata: map[string][]byte{"nope": {0x01}},
 	})
 	assert.Error(t, err)
+}
+
+func TestPacketOut_ZeroMetadata(t *testing.T) {
+	h := testutil.StartServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, err := client.Dial(ctx, "passthrough:bufnet",
+		client.WithDeviceID(1),
+		client.WithElectionID(client.ElectionID{Low: 1}),
+		client.WithInsecure(),
+		client.WithArbitrationTimeout(1500*time.Millisecond),
+		client.WithDialOptions(grpc.WithContextDialer(h.Dialer())),
+	)
+	require.NoError(t, err)
+	defer c.Close()
+	require.NoError(t, c.BecomePrimary(ctx))
+	sub, err := packetio.NewSubscriber(c, fixturePipeline(t))
+	require.NoError(t, err)
+	values := [][]byte{codec.MustEncodeUint(0, 9), nil, {}, {0x00, 0x00}}
+	for i, value := range values {
+		require.NoError(t, sub.Send(ctx, &packetio.PacketOut{
+			Payload:  []byte{byte(i)},
+			Metadata: map[string][]byte{"egress_port": value},
+		}))
+	}
+	require.Eventually(t, func() bool {
+		h.Mu.Lock()
+		defer h.Mu.Unlock()
+		return len(h.ReceivedPacketOuts) == len(values)
+	}, time.Second, 10*time.Millisecond)
+	h.Mu.Lock()
+	defer h.Mu.Unlock()
+	for i, packet := range h.ReceivedPacketOuts {
+		require.Equal(t, []byte{byte(i)}, packet.Payload)
+		require.Len(t, packet.Metadata, 1)
+		require.EqualValues(t, 1, packet.Metadata[0].MetadataId)
+		require.Equal(t, []byte{0x00}, packet.Metadata[0].Value)
+	}
 }

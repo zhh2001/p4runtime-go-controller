@@ -86,7 +86,11 @@ All other errors bubble up unchanged so callers can tell the difference between 
 
 ## Canonical bytes
 
-P4Runtime 1.3.0 requires integer-typed byte strings to contain no leading zero bytes. `internal/codec` enforces this at every encoding boundary:
+P4Runtime's canonical encoding uses the shortest nonempty big-endian byte string for an unsigned integer. Zero is encoded as `00`. Integer encoders normalize nil, empty, and all-zero inputs to that single byte.
+
+The table entry builder handles wildcard omission separately. `Optional(nil)`, an LPM prefix of zero, and an all-zero ternary mask omit the corresponding match field. A zero value with an explicit optional match, a nonzero LPM prefix, or a nonzero ternary mask remains in the entry.
+
+`internal/codec` provides these helpers:
 
 - `EncodeUint(uint64, bits)` — integer → canonical bytes.
 - `EncodeBytes(bytes, bits)` — strips leading zeros, validates bit width.

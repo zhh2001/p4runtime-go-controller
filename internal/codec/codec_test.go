@@ -3,6 +3,7 @@ package codec_test
 import (
 	"bytes"
 	"errors"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,8 +21,11 @@ func TestEncodeUint(t *testing.T) {
 		wantErr       bool
 		containsIsErr error
 	}{
-		{v: 0, width: 8, want: []byte{}},
-		{v: 0, width: 32, want: []byte{}},
+		{v: 0, width: 1, want: []byte{0x00}},
+		{v: 0, width: 8, want: []byte{0x00}},
+		{v: 0, width: 9, want: []byte{0x00}},
+		{v: 0, width: 32, want: []byte{0x00}},
+		{v: 0, width: 64, want: []byte{0x00}},
 		{v: 1, width: 8, want: []byte{0x01}},
 		{v: 255, width: 8, want: []byte{0xff}},
 		{v: 256, width: 16, want: []byte{0x01, 0x00}},
@@ -35,6 +39,8 @@ func TestEncodeUint(t *testing.T) {
 		{v: 256, width: 8, wantErr: true, containsIsErr: errs.ErrInvalidBitWidth},
 		{v: 1, width: 0, wantErr: true},
 		{v: 1, width: 65, wantErr: true},
+		{v: 0, width: 0, wantErr: true},
+		{v: 0, width: 65, wantErr: true},
 	}
 	for _, tc := range cases {
 		got, err := codec.EncodeUint(tc.v, tc.width)
@@ -51,6 +57,7 @@ func TestEncodeUint(t *testing.T) {
 }
 
 func TestMustEncodeUint(t *testing.T) {
+	assert.Equal(t, []byte{0x00}, codec.MustEncodeUint(0, 9))
 	assert.Equal(t, []byte{0x01}, codec.MustEncodeUint(1, 8))
 	assert.Panics(t, func() { codec.MustEncodeUint(256, 8) })
 }
@@ -63,14 +70,19 @@ func TestEncodeBytes(t *testing.T) {
 		want    []byte
 		wantErr bool
 	}{
-		{name: "empty", in: []byte{}, width: 8, want: []byte{}},
-		{name: "zeros only", in: []byte{0x00, 0x00}, width: 16, want: []byte{}},
+		{name: "nil", in: nil, width: 8, want: []byte{0x00}},
+		{name: "empty", in: []byte{}, width: 8, want: []byte{0x00}},
+		{name: "zeros only", in: []byte{0x00, 0x00}, width: 16, want: []byte{0x00}},
+		{name: "zeros exceed storage width", in: make([]byte, 16), width: 1, want: []byte{0x00}},
+		{name: "wide zero", in: make([]byte, 32), width: 128, want: []byte{0x00}},
 		{name: "strip leading", in: []byte{0x00, 0x00, 0xab}, width: 24, want: []byte{0xab}},
 		{name: "full 16", in: []byte{0xab, 0xcd}, width: 16, want: []byte{0xab, 0xcd}},
 		{name: "too wide", in: []byte{0x01, 0x00}, width: 8, wantErr: true},
 		{name: "bits set outside width", in: []byte{0x03, 0xff}, width: 9, wantErr: true},
 		{name: "aligned 9-bit ok", in: []byte{0x01, 0xff}, width: 9, want: []byte{0x01, 0xff}},
 		{name: "bad width", in: []byte{0x01}, width: 0, wantErr: true},
+		{name: "empty bad width", in: nil, width: 0, wantErr: true},
+		{name: "zero bad width", in: []byte{0x00}, width: -1, wantErr: true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -92,6 +104,7 @@ func TestDecodeUint(t *testing.T) {
 		err  bool
 	}{
 		{in: []byte{}, want: 0},
+		{in: []byte{0x00}, want: 0},
 		{in: []byte{0x01}, want: 1},
 		{in: []byte{0x01, 0x00}, want: 256},
 		{in: []byte{0xde, 0xad, 0xbe, 0xef}, want: 0xdeadbeef},
@@ -122,6 +135,10 @@ func TestMAC(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}, b)
 
+	b, err = codec.MAC("00:00:00:00:00:00")
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x00}, b)
+
 	_, err = codec.MAC("not-a-mac")
 	assert.Error(t, err)
 
@@ -141,7 +158,7 @@ func TestIPv4(t *testing.T) {
 
 	b, err = codec.IPv4("0.0.0.0")
 	require.NoError(t, err)
-	assert.Equal(t, []byte{}, b)
+	assert.Equal(t, []byte{0x00}, b)
 
 	_, err = codec.IPv4("::1")
 	assert.Error(t, err)
@@ -160,6 +177,10 @@ func TestIPv6(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, byte(0x20), b[0])
 	assert.Equal(t, byte(0x01), b[len(b)-1])
+
+	b, err = codec.IPv6("::")
+	require.NoError(t, err)
+	assert.Equal(t, []byte{0x00}, b)
 
 	_, err = codec.IPv6("10.0.0.1")
 	assert.Error(t, err)
@@ -191,10 +212,10 @@ func TestLPMMask(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []byte{0x0a, 0x01, 0x02, 0x00}, b)
 
-	// prefix 0 → empty
+	// A zero prefix is numeric zero. The builder handles wildcard omission.
 	b, err = codec.LPMMask(v, 0, 32)
 	require.NoError(t, err)
-	assert.Equal(t, []byte{}, b)
+	assert.Equal(t, []byte{0x00}, b)
 
 	// errors
 	_, err = codec.LPMMask(v, -1, 32)
@@ -218,7 +239,7 @@ func TestTernaryMask(t *testing.T) {
 
 	b, err = codec.TernaryMask(0, 32)
 	require.NoError(t, err)
-	assert.Equal(t, []byte{}, b)
+	assert.Equal(t, []byte{0x00}, b)
 
 	_, err = codec.TernaryMask(33, 32)
 	assert.Error(t, err)
@@ -251,8 +272,10 @@ func TestParseHex(t *testing.T) {
 		{in: "0x0a", want: []byte{0x0a}},
 		{in: "0a:0b:0c", want: []byte{0x0a, 0x0b, 0x0c}},
 		{in: "aBcDeF", want: []byte{0xab, 0xcd, 0xef}},
-		{in: "0", want: []byte{}},
-		{in: "0x", want: []byte{}},
+		{in: "0", want: []byte{0x00}},
+		{in: "0x", want: []byte{0x00}},
+		{in: "", want: []byte{0x00}},
+		{in: "00:00", want: []byte{0x00}},
 		{in: "gg", err: true},
 	}
 	for _, tc := range cases {
@@ -268,6 +291,63 @@ func TestParseHex(t *testing.T) {
 
 func TestFormatHex(t *testing.T) {
 	assert.Equal(t, "0", codec.FormatHex([]byte{}))
+	assert.Equal(t, "00", codec.FormatHex([]byte{0x00}))
 	assert.Equal(t, "0a:0b", codec.FormatHex([]byte{0x0a, 0x0b}))
 	assert.Equal(t, "ff", codec.FormatHex([]byte{0xff}))
+}
+
+func TestEncodeUint_CanonicalRoundTrip(t *testing.T) {
+	for width := 1; width <= 64; width++ {
+		maxValue := ^uint64(0) >> (64 - width)
+		for _, value := range []uint64{0, 1, maxValue} {
+			encoded, err := codec.EncodeUint(value, width)
+			require.NoError(t, err)
+			require.NotEmpty(t, encoded, "value=%d width=%d", value, width)
+			number := new(big.Int).SetUint64(value)
+			length := max(1, (number.BitLen()+7)/8)
+			require.Len(t, encoded, length, "value=%d width=%d", value, width)
+			require.Equal(t, value, new(big.Int).SetBytes(encoded).Uint64())
+			decoded, err := codec.DecodeUint(encoded)
+			require.NoError(t, err)
+			require.Equal(t, value, decoded)
+		}
+	}
+}
+
+func TestMasks_ZeroValues(t *testing.T) {
+	lpm, err := codec.LPMMask([]byte{0x01}, 8, 32)
+	require.NoError(t, err)
+	require.Equal(t, []byte{0x00}, lpm)
+	for _, value := range [][]byte{nil, {}, {0x00}, {0x00, 0x00}} {
+		ternary, err := codec.TernaryApply(value, []byte{0xff}, 32)
+		require.NoError(t, err)
+		require.Equal(t, []byte{0x00}, ternary)
+	}
+	ternary, err := codec.TernaryApply([]byte{0xff}, nil, 32)
+	require.NoError(t, err)
+	require.Equal(t, []byte{0x00}, ternary)
+}
+
+func FuzzEncodeBytes_Canonical(f *testing.F) {
+	f.Add([]byte{}, uint8(8))
+	f.Add([]byte{0x00, 0x00}, uint8(1))
+	f.Add([]byte{0x00, 0x01, 0xff}, uint8(9))
+	f.Add([]byte{0x03, 0xff}, uint8(9))
+	f.Add(bytes.Repeat([]byte{0xff}, 16), uint8(128))
+	f.Fuzz(func(t *testing.T, input []byte, width uint8) {
+		bitwidth := max(1, int(width))
+		number := new(big.Int).SetBytes(input)
+		encoded, err := codec.EncodeBytes(input, bitwidth)
+		if number.BitLen() > bitwidth {
+			require.ErrorIs(t, err, errs.ErrInvalidBitWidth)
+			return
+		}
+		require.NoError(t, err)
+		require.NotEmpty(t, encoded)
+		require.Len(t, encoded, max(1, len(number.Bytes())))
+		require.Zero(t, new(big.Int).SetBytes(encoded).Cmp(number))
+		canonical, err := codec.EncodeBytes(encoded, bitwidth)
+		require.NoError(t, err)
+		require.Equal(t, encoded, canonical)
+	})
 }

@@ -1,9 +1,7 @@
 // Package codec encodes and decodes P4Runtime canonical byte strings.
 //
-// P4Runtime 1.3.0 mandates that byte strings representing integer values
-// contain no leading zero bytes — the most-significant byte must have its
-// most-significant bit set, with the single exception that the value zero
-// is represented by an empty byte string.
+// P4Runtime unsigned integers use big-endian byte strings with no redundant
+// leading zero bytes. The value zero is encoded as a single zero byte.
 //
 // Beyond integers this package exposes helpers for MAC addresses (48-bit),
 // IPv4 and IPv6 addresses, arbitrary bit widths, LPM prefix masking, and
@@ -37,7 +35,7 @@ func EncodeUint(v uint64, bitwidth int) ([]byte, error) {
 		}
 	}
 	if v == 0 {
-		return []byte{}, nil
+		return []byte{0x00}, nil
 	}
 	var buf [8]byte
 	binary.BigEndian.PutUint64(buf[:], v)
@@ -55,16 +53,12 @@ func MustEncodeUint(v uint64, bitwidth int) []byte {
 
 // EncodeBytes returns the canonical encoding of value interpreted as a
 // big-endian integer of the given bit width. Any leading zero bytes are
-// stripped. The bit width is used to validate that value fits; values with
-// too-high bits set return ErrInvalidBitWidth.
+// stripped, leaving one byte for zero. Nil and empty input represent zero.
+// Values with bits outside the declared width return ErrInvalidBitWidth.
 func EncodeBytes(value []byte, bitwidth int) ([]byte, error) {
 	if bitwidth <= 0 {
 		return nil, fmt.Errorf("codec.EncodeBytes: bitwidth %d must be positive", bitwidth)
 	}
-	if len(value) == 0 {
-		return []byte{}, nil
-	}
-
 	// Check for bits outside the declared width.
 	maxBytes := byteLen(bitwidth)
 	leadingBits := bitwidth % 8
@@ -74,7 +68,7 @@ func EncodeBytes(value []byte, bitwidth int) ([]byte, error) {
 		idx++
 	}
 	if idx == len(value) {
-		return []byte{}, nil
+		return []byte{0x00}, nil
 	}
 	significant := value[idx:]
 	if len(significant) > maxBytes {
@@ -94,8 +88,8 @@ func EncodeBytes(value []byte, bitwidth int) ([]byte, error) {
 	return out, nil
 }
 
-// DecodeUint interprets a canonical byte string as uint64. An empty byte
-// slice decodes to zero. Inputs longer than 8 bytes return an error.
+// DecodeUint interprets a big-endian byte string as uint64. Empty input is
+// accepted as zero for compatibility. Inputs longer than 8 bytes return an error.
 func DecodeUint(b []byte) (uint64, error) {
 	if len(b) > 8 {
 		return 0, fmt.Errorf("codec.DecodeUint: input %d bytes exceeds 64 bits", len(b))
@@ -182,9 +176,9 @@ func MustIPv6(s string) []byte {
 }
 
 // LPMMask truncates value to the first prefixLen bits and returns the
-// canonical encoding. bitwidth is the total field width; prefixLen must
-// satisfy 0 <= prefixLen <= bitwidth. A zero prefix returns an empty byte
-// slice (callers should omit the match entirely in that case).
+// canonical encoding. bitwidth is the total field width. prefixLen must
+// satisfy 0 <= prefixLen <= bitwidth. A zero prefix returns a single zero
+// byte. Callers should omit the match entirely in that case.
 func LPMMask(value []byte, prefixLen int, bitwidth int) ([]byte, error) {
 	if bitwidth <= 0 {
 		return nil, fmt.Errorf("codec.LPMMask: bitwidth %d must be positive", bitwidth)
@@ -193,7 +187,7 @@ func LPMMask(value []byte, prefixLen int, bitwidth int) ([]byte, error) {
 		return nil, fmt.Errorf("codec.LPMMask: prefixLen %d out of range 0..%d", prefixLen, bitwidth)
 	}
 	if prefixLen == 0 {
-		return []byte{}, nil
+		return []byte{0x00}, nil
 	}
 	// Pad or trim to maxBytes (ceil(bitwidth/8)).
 	maxBytes := byteLen(bitwidth)
@@ -219,12 +213,13 @@ func LPMMask(value []byte, prefixLen int, bitwidth int) ([]byte, error) {
 // TernaryMask builds a mask with the upper prefixLen bits set and the rest
 // zero, sized for the given bit width. Useful when the caller wants a
 // prefix-style ternary match without thinking about byte alignment.
+// A zero prefix returns a single zero byte.
 func TernaryMask(prefixLen, bitwidth int) ([]byte, error) {
 	if prefixLen < 0 || prefixLen > bitwidth {
 		return nil, fmt.Errorf("codec.TernaryMask: prefixLen %d out of range 0..%d", prefixLen, bitwidth)
 	}
 	if prefixLen == 0 {
-		return []byte{}, nil
+		return []byte{0x00}, nil
 	}
 	maxBytes := byteLen(bitwidth)
 	mask := make([]byte, maxBytes)
@@ -318,7 +313,7 @@ func stripLeadingZeros(b []byte) []byte {
 		i++
 	}
 	if i == len(b) {
-		return []byte{}
+		return []byte{0x00}
 	}
 	out := make([]byte, len(b)-i)
 	copy(out, b[i:])
