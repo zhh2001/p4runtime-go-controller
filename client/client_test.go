@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
@@ -112,6 +113,40 @@ func TestClient_CloseIsIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	assert.NoError(t, c.Close())
 	assert.NoError(t, c.Close()) // second call is a no-op
+}
+
+func TestClient_CloseRevokesMastership(t *testing.T) {
+	h := testutil.StartServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, err := dialViaHarness(ctx, h)
+	require.NoError(t, err)
+	require.True(t, c.IsPrimary())
+	require.NoError(t, c.Close())
+	assert.Equal(t, client.StateDisconnected, c.State())
+	assert.False(t, c.IsPrimary())
+	assert.ErrorIs(t, c.WriteTableEntry(ctx, client.UpdateInsert, &p4v1.TableEntry{TableId: 1}), errs.ErrNotPrimary)
+	assert.ErrorIs(t, c.SendPacketOut(ctx, &p4v1.PacketOut{}), errs.ErrNotPrimary)
+	for range 32 {
+		assert.ErrorIs(t, c.BecomePrimary(ctx), errs.ErrStreamClosed)
+	}
+}
+
+func TestClient_DisconnectRevokesMastership(t *testing.T) {
+	h := testutil.StartServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, err := dialViaHarness(ctx, h)
+	require.NoError(t, err)
+	defer c.Close()
+	require.True(t, c.IsPrimary())
+	h.Stop()
+	require.Eventually(t, func() bool {
+		return c.State() != client.StatePrimary
+	}, time.Second, 10*time.Millisecond)
+	assert.False(t, c.IsPrimary())
+	assert.ErrorIs(t, c.WriteTableEntry(ctx, client.UpdateInsert, &p4v1.TableEntry{TableId: 1}), errs.ErrNotPrimary)
+	assert.ErrorIs(t, c.SendPacketOut(ctx, &p4v1.PacketOut{}), errs.ErrNotPrimary)
 }
 
 func TestBecomePrimary_RespectsContext(t *testing.T) {

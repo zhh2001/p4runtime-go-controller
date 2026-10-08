@@ -19,7 +19,7 @@ type State int
 
 const (
 	// StateDisconnected is the starting state and the state after the
-	// stream drops before a reconnect attempt fires.
+	// stream drops before a reconnect attempt fires or after shutdown.
 	StateDisconnected State = iota
 	// StateConnecting is the state during gRPC stream establishment and
 	// the pre-arbitration handshake.
@@ -88,7 +88,6 @@ type Supervisor struct {
 
 	mu      sync.RWMutex
 	state   State
-	primary bool
 	lastErr error
 
 	events  chan Event
@@ -142,7 +141,7 @@ func (s *Supervisor) State() State {
 func (s *Supervisor) IsPrimary() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.primary
+	return s.state == StatePrimary
 }
 
 // Send enqueues a StreamMessageRequest for the send goroutine. The request is
@@ -151,11 +150,20 @@ func (s *Supervisor) IsPrimary() bool {
 // completes.
 func (s *Supervisor) Send(ctx context.Context, req *p4v1.StreamMessageRequest) error {
 	select {
+	case <-s.stop:
+		return errStopped
+	case <-s.stopped:
+		return errStopped
+	default:
+	}
+	select {
 	case s.sendCh <- req:
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-s.stop:
+		return errStopped
+	case <-s.stopped:
 		return errStopped
 	}
 }
@@ -179,6 +187,11 @@ func (s *Supervisor) Close() {
 func (s *Supervisor) run(parent context.Context) {
 	defer close(s.stopped)
 	defer close(s.events)
+	defer func() {
+		if s.State() != StateDisconnected {
+			s.setState(StateDisconnected, nil)
+		}
+	}()
 
 	backoff := s.cfg.BackoffInitial
 	for {
@@ -322,9 +335,7 @@ func (s *Supervisor) serve(ctx context.Context, stream p4v1.P4Runtime_StreamChan
 }
 
 func (s *Supervisor) applyArbitration(arb *p4v1.MasterArbitrationUpdate) {
-	primary := statusOK(arb.GetStatus())
-	s.setPrimary(primary)
-	if primary {
+	if statusOK(arb.GetStatus()) {
 		s.setState(StatePrimary, nil)
 	} else {
 		s.setState(StateBackup, nil)
@@ -341,12 +352,6 @@ func (s *Supervisor) setState(st State, err error) {
 	default:
 		// Drop if no reader — the latest state is always retrievable via State().
 	}
-}
-
-func (s *Supervisor) setPrimary(p bool) {
-	s.mu.Lock()
-	s.primary = p
-	s.mu.Unlock()
 }
 
 func (s *Supervisor) sleep(ctx context.Context, d time.Duration) bool {

@@ -193,9 +193,12 @@ func (c *Client) IsPrimary() bool { return c.sup.IsPrimary() }
 func (c *Client) Events() <-chan Event { return c.events }
 
 // BecomePrimary blocks until the client observes StatePrimary or ctx is done.
-// It returns nil on success, ctx.Err() on cancellation, or ErrNotPrimary if
+// It returns nil on success, ctx.Err() on cancellation, or ErrStreamClosed if
 // Close is invoked while waiting.
 func (c *Client) BecomePrimary(ctx context.Context) error {
+	if c.ctx.Err() != nil {
+		return errs.ErrStreamClosed
+	}
 	if c.IsPrimary() {
 		return nil
 	}
@@ -208,8 +211,13 @@ func (c *Client) BecomePrimary(ctx context.Context) error {
 				return errs.ErrStreamClosed
 			}
 			if ev.State == StatePrimary {
+				if c.ctx.Err() != nil {
+					return errs.ErrStreamClosed
+				}
 				return nil
 			}
+		case <-c.ctx.Done():
+			return errs.ErrStreamClosed
 		case <-c.closed:
 			return errs.ErrStreamClosed
 		}

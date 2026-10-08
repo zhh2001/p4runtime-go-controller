@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
+	errs "github.com/zhh2001/p4runtime-go-controller/errors"
 	"github.com/zhh2001/p4runtime-go-controller/internal/codec"
 	"github.com/zhh2001/p4runtime-go-controller/pipeline"
 	"github.com/zhh2001/p4runtime-go-controller/tableentry"
@@ -79,4 +80,10 @@ func TestBMv2_ConnectAndSetPipeline(t *testing.T) {
 	entries, err := c.ReadTableEntries(ctx, entry.GetTableId())
 	require.NoError(t, err)
 	require.NotEmpty(t, entries)
+
+	require.NoError(t, c.Close())
+	require.Equal(t, client.StateDisconnected, c.State())
+	require.False(t, c.IsPrimary())
+	require.ErrorIs(t, c.WriteTableEntry(ctx, client.UpdateModify, entry), errs.ErrNotPrimary)
+	require.ErrorIs(t, c.BecomePrimary(ctx), errs.ErrStreamClosed)
 }

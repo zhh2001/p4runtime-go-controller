@@ -83,7 +83,7 @@ func TestSupervisorArbitrationUpdates(t *testing.T) {
 		for ev := range s.Events() {
 			states = append(states, ev.State)
 		}
-		assert.Equal(t, []State{StateConnecting, StatePrimary, StateBackup, StatePrimary}, states)
+		assert.Equal(t, []State{StateConnecting, StatePrimary, StateBackup, StatePrimary, StateDisconnected}, states)
 	})
 }
 
@@ -127,7 +127,7 @@ func TestSupervisorCloseWithPendingArbitration(t *testing.T) {
 				for ev := range s.Events() {
 					states = append(states, ev.State)
 				}
-				assert.Equal(t, []State{StateConnecting, StatePrimary}, states)
+				assert.Equal(t, []State{StateConnecting, StatePrimary, StateDisconnected}, states)
 			})
 		})
 	}
