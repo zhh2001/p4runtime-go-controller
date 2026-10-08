@@ -111,6 +111,7 @@ sequenceDiagram
 - Primary status follows the observable state. Disconnect, reconnect, and shutdown revoke mastership. A new stream must complete arbitration before it can be primary.
 - `BecomePrimary` reads a state snapshot and waits on a change notification shared by all waiters. `Events` uses a separate bounded queue for observers.
 - Packet, digest, and idle timeout handlers run in the receive goroutine. Handlers should return quickly and send slow work to a worker or channel.
+- The dispatcher selects the current message's handlers under the subscription lock, then releases it before invoking them. Handlers can register or cancel subscriptions. Changes affect later messages, and cancellation does not wait for selected handlers to finish.
 - A handler can call `Client.Close`. Close does not wait for a handler already in progress. The receive goroutine exits when the handler returns.
 
 ## Design Decisions

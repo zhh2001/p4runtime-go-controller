@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/zhh2001/p4runtime-go-controller/client"
 	"github.com/zhh2001/p4runtime-go-controller/internal/testutil"
 )
 
@@ -118,5 +119,85 @@ func TestStream_HandlerCanCloseClient(t *testing.T) {
 		t.Fatal("Close blocked inside the packet handler")
 	}
 	for range c.Events() {
+	}
+}
+
+func TestStream_HandlersCanReplaceSubscriptions(t *testing.T) {
+	cases := []struct {
+		name      string
+		message   *p4v1.StreamMessageResponse
+		subscribe func(*client.Client, func()) func()
+	}{
+		{
+			name:    "packet",
+			message: &p4v1.StreamMessageResponse{Update: &p4v1.StreamMessageResponse_Packet{Packet: &p4v1.PacketIn{}}},
+			subscribe: func(c *client.Client, h func()) func() {
+				return c.OnPacketIn(func(context.Context, *p4v1.PacketIn) { h() })
+			},
+		},
+		{
+			name:    "digest",
+			message: &p4v1.StreamMessageResponse{Update: &p4v1.StreamMessageResponse_Digest{Digest: &p4v1.DigestList{}}},
+			subscribe: func(c *client.Client, h func()) func() {
+				return c.OnDigestList(func(context.Context, *p4v1.DigestList) { h() })
+			},
+		},
+		{
+			name:    "idle",
+			message: &p4v1.StreamMessageResponse{Update: &p4v1.StreamMessageResponse_IdleTimeoutNotification{IdleTimeoutNotification: &p4v1.IdleTimeoutNotification{}}},
+			subscribe: func(c *client.Client, h func()) func() {
+				return c.OnIdleTimeout(func(context.Context, *p4v1.IdleTimeoutNotification) { h() })
+			},
+		},
+		{
+			name:    "stream",
+			message: &p4v1.StreamMessageResponse{Update: &p4v1.StreamMessageResponse_Error{Error: &p4v1.StreamError{}}},
+			subscribe: func(c *client.Client, h func()) func() {
+				return c.OnStreamMessage(func(context.Context, *p4v1.StreamMessageResponse) { h() })
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := testutil.StartServer(t)
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			c, err := dialViaHarness(ctx, h)
+			require.NoError(t, err)
+			defer c.Close()
+			require.NoError(t, c.BecomePrimary(ctx))
+
+			var originalCount, replacementCount atomic.Int64
+			registered, replaced, received := make(chan struct{}), make(chan struct{}, 1), make(chan struct{}, 1)
+			var off, offReplacement func()
+			off = tc.subscribe(c, func() {
+				<-registered
+				originalCount.Add(1)
+				off()
+				off()
+				offReplacement = tc.subscribe(c, func() {
+					replacementCount.Add(1)
+					received <- struct{}{}
+				})
+				replaced <- struct{}{}
+			})
+			close(registered)
+			require.Eventually(t, func() bool { return h.PushStreamMessage(tc.message) == nil }, time.Second, 10*time.Millisecond)
+			select {
+			case <-replaced:
+			case <-ctx.Done():
+				t.Fatal("handler could not replace its subscription")
+			}
+			require.Zero(t, replacementCount.Load())
+			require.NoError(t, h.PushStreamMessage(tc.message))
+			select {
+			case <-received:
+			case <-ctx.Done():
+				t.Fatal("stream stopped receiving after the subscription changed")
+			}
+			require.Equal(t, int64(1), originalCount.Load())
+			require.Equal(t, int64(1), replacementCount.Load())
+			offReplacement()
+		})
 	}
 }

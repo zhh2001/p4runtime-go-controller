@@ -65,7 +65,9 @@ Reconnect backoff is `initial * 2^k` up to `max`, with ±20 % jitter applied to 
 - `IdleTimeoutHandler`
 - `StreamMessageHandler`
 
-Registration returns a closure that deletes the corresponding key. All handlers run on the supervisor goroutine — **do not block inside them**.
+Registration returns a closure that removes the corresponding subscription. The dispatcher copies the handlers for each message under the subscription lock and releases the lock before invoking any callback. Catch-all handlers run before the matching typed handlers. Ordering within either group is unspecified.
+
+Handlers can register or cancel subscriptions, including their own. Changes apply to later messages. Cancellation returns without waiting for handlers already selected for the current message, which may still run. All handlers run in the stream receive goroutine and should return quickly.
 
 ## SetPipeline fallback
 

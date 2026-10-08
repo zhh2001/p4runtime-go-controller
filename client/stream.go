@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"sync"
 
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
@@ -12,7 +14,7 @@ import (
 
 // PacketInHandler is invoked for every PacketIn arriving on the
 // bidirectional stream. Handlers run on the stream receive goroutine and must
-// return quickly; offload slow work to a channel or a worker pool.
+// return quickly. Offload slow work to a channel or a worker pool.
 type PacketInHandler func(ctx context.Context, msg *p4v1.PacketIn)
 
 // DigestListHandler is invoked for every DigestList arriving on the stream.
@@ -99,38 +101,59 @@ func (d *dispatchSlots) addStream(h StreamMessageHandler) func() {
 
 func (d *dispatchSlots) dispatch(ctx context.Context, msg *p4v1.StreamMessageResponse) {
 	d.mu.RLock()
-	defer d.mu.RUnlock()
-	for _, h := range d.stream {
+	streamHandlers := slices.Collect(maps.Values(d.stream))
+	var packetHandlers []PacketInHandler
+	var digestHandlers []DigestListHandler
+	var idleHandlers []IdleTimeoutHandler
+	switch msg.GetUpdate().(type) {
+	case *p4v1.StreamMessageResponse_Packet:
+		packetHandlers = slices.Collect(maps.Values(d.packetIn))
+	case *p4v1.StreamMessageResponse_Digest:
+		digestHandlers = slices.Collect(maps.Values(d.digestList))
+	case *p4v1.StreamMessageResponse_IdleTimeoutNotification:
+		idleHandlers = slices.Collect(maps.Values(d.idle))
+	}
+	d.mu.RUnlock()
+
+	// All subscriptions for this message are selected before any handler runs.
+	for _, h := range streamHandlers {
 		h(ctx, msg)
 	}
 	switch u := msg.GetUpdate().(type) {
 	case *p4v1.StreamMessageResponse_Packet:
-		for _, h := range d.packetIn {
+		for _, h := range packetHandlers {
 			h(ctx, u.Packet)
 		}
 	case *p4v1.StreamMessageResponse_Digest:
-		for _, h := range d.digestList {
+		for _, h := range digestHandlers {
 			h(ctx, u.Digest)
 		}
 	case *p4v1.StreamMessageResponse_IdleTimeoutNotification:
-		for _, h := range d.idle {
+		for _, h := range idleHandlers {
 			h(ctx, u.IdleTimeoutNotification)
 		}
 	}
 }
 
 // OnPacketIn registers cb to receive PacketIn messages. The returned closure
-// cancels the registration.
+// cancels future dispatches and can be called from a handler. Handlers already
+// selected for the current message may still run.
 func (c *Client) OnPacketIn(cb PacketInHandler) func() { return c.dispatch.addPacketIn(cb) }
 
 // OnDigestList registers cb to receive DigestList messages.
+// The returned closure cancels future dispatches and can be called from a
+// handler. Handlers already selected for the current message may still run.
 func (c *Client) OnDigestList(cb DigestListHandler) func() { return c.dispatch.addDigestList(cb) }
 
 // OnIdleTimeout registers cb to receive IdleTimeoutNotification messages.
+// The returned closure cancels future dispatches and can be called from a
+// handler. Handlers already selected for the current message may still run.
 func (c *Client) OnIdleTimeout(cb IdleTimeoutHandler) func() { return c.dispatch.addIdle(cb) }
 
 // OnStreamMessage registers cb to receive every StreamMessageResponse the
 // supervisor delivers. Useful for logging or debugging.
+// The returned closure cancels future dispatches and can be called from a
+// handler. Handlers already selected for the current message may still run.
 func (c *Client) OnStreamMessage(cb StreamMessageHandler) func() { return c.dispatch.addStream(cb) }
 
 // SendStreamRequest enqueues a raw StreamMessageRequest. Prefer the typed
