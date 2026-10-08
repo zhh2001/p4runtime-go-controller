@@ -27,9 +27,16 @@ control MyIngress(inout headers_t h, inout metadata_t m,
         default_action = NoAction();
         size = 32;
     }
+    table t_range {
+        key = { s.ingress_port : range; }
+        actions = { forward; NoAction; }
+        default_action = NoAction();
+        size = 32;
+    }
     apply {
         t_lpm.apply();
         t_ternary.apply();
+        t_range.apply();
     }
 }
 

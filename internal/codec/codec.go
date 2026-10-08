@@ -11,6 +11,7 @@
 package codec
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -259,25 +260,19 @@ func clearLowBits(value []byte, count int) {
 
 // ValidateRange checks that low <= high when both are interpreted as
 // unsigned integers of the given bit width. It also verifies both endpoints
-// fit within the width.
+// fit within the width. Redundant leading zero bytes are accepted and do not
+// affect the comparison. The inputs are not modified.
 func ValidateRange(low, high []byte, bitwidth int) error {
-	if _, err := EncodeBytes(low, bitwidth); err != nil {
+	l, err := EncodeBytes(low, bitwidth)
+	if err != nil {
 		return fmt.Errorf("codec.ValidateRange low: %w", err)
 	}
-	if _, err := EncodeBytes(high, bitwidth); err != nil {
+	h, err := EncodeBytes(high, bitwidth)
+	if err != nil {
 		return fmt.Errorf("codec.ValidateRange high: %w", err)
 	}
-	maxBytes := byteLen(bitwidth)
-	lp := padToWidth(low, maxBytes)
-	hp := padToWidth(high, maxBytes)
-	for i := 0; i < maxBytes; i++ {
-		if lp[i] == hp[i] {
-			continue
-		}
-		if lp[i] > hp[i] {
-			return fmt.Errorf("codec.ValidateRange: low > high")
-		}
-		break
+	if len(l) > len(h) || (len(l) == len(h) && bytes.Compare(l, h) > 0) {
+		return fmt.Errorf("codec.ValidateRange: low > high")
 	}
 	return nil
 }
@@ -328,15 +323,4 @@ func stripLeadingZeros(b []byte) []byte {
 
 func byteLen(bitwidth int) int {
 	return (bitwidth + 7) / 8
-}
-
-// padToWidth left-pads value with zeros to exactly width bytes. Returns nil
-// if value is already longer than width.
-func padToWidth(value []byte, width int) []byte {
-	if len(value) > width {
-		return nil
-	}
-	out := make([]byte, width)
-	copy(out[width-len(value):], value)
-	return out
 }

@@ -67,3 +67,11 @@ func TestMasks_FieldWidth(t *testing.T) {
 	_, err = codec.TernaryApply([]byte{1, 0xff}, []byte{3, 0xff}, 9)
 	require.ErrorIs(t, err, errs.ErrInvalidBitWidth)
 }
+
+func TestValidateRange_NormalizedEndpoints(t *testing.T) {
+	var err error
+	require.NotPanics(t, func() { err = codec.ValidateRange([]byte{0, 1}, []byte{0, 0, 2}, 8) })
+	require.NoError(t, err)
+	require.ErrorContains(t, codec.ValidateRange([]byte{0, 2}, []byte{0, 1}, 8), "low > high")
+	require.ErrorIs(t, codec.ValidateRange([]byte{1}, []byte{0, 2, 0}, 9), errs.ErrInvalidBitWidth)
+}

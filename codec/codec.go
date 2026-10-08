@@ -87,7 +87,8 @@ func TernaryApply(value, mask []byte, bitwidth int) ([]byte, error) {
 	return internalcodec.TernaryApply(value, mask, bitwidth)
 }
 
-// ValidateRange checks that low <= high for the declared bit width.
+// ValidateRange checks that low <= high and both endpoints fit the declared bit
+// width. Redundant leading zeros are accepted. The inputs are not modified.
 func ValidateRange(low, high []byte, bitwidth int) error {
 	return internalcodec.ValidateRange(low, high, bitwidth)
 }

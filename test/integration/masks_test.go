@@ -44,11 +44,14 @@ func TestBMv2_FieldWidthMasks(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, tc := range []struct {
-		name   string
-		table  string
-		prefix int32
-		mask   []byte
-		want   []byte
+		name     string
+		table    string
+		prefix   int32
+		mask     []byte
+		low      []byte
+		high     []byte
+		want     []byte
+		wantHigh []byte
 	}{
 		{name: "lpm first bit", table: "MyIngress.t_lpm", prefix: 1, want: []byte{1, 0}},
 		{name: "lpm partial prefix", table: "MyIngress.t_lpm", prefix: 8, want: []byte{1, 0xfe}},
@@ -58,6 +61,12 @@ func TestBMv2_FieldWidthMasks(t *testing.T) {
 		{name: "ternary full prefix", table: "MyIngress.t_ternary", prefix: 9, want: []byte{1, 0xff}},
 		{name: "ternary short mask", table: "MyIngress.t_ternary", mask: []byte{0xff}, want: []byte{0xff}},
 		{name: "ternary padded mask", table: "MyIngress.t_ternary", mask: []byte{0, 0, 0xff}, want: []byte{0xff}},
+		{name: "range padded low", table: "MyIngress.t_range", low: []byte{0, 0, 1}, high: []byte{2}, want: []byte{1}, wantHigh: []byte{2}},
+		{name: "range padded high", table: "MyIngress.t_range", low: []byte{1}, high: []byte{0, 0, 2}, want: []byte{1}, wantHigh: []byte{2}},
+		{name: "range equal endpoints", table: "MyIngress.t_range", low: []byte{0, 0, 1}, high: []byte{0, 0, 0, 1}, want: []byte{1}, wantHigh: []byte{1}},
+		{name: "range byte boundary", table: "MyIngress.t_range", low: []byte{0, 0, 0xff}, high: []byte{0, 1, 0}, want: []byte{0xff}, wantHigh: []byte{1, 0}},
+		{name: "range maximum", table: "MyIngress.t_range", low: []byte{0, 0, 1, 0xfe}, high: []byte{0, 0, 1, 0xff}, want: []byte{1, 0xfe}, wantHigh: []byte{1, 0xff}},
+		{name: "range zero endpoints", table: "MyIngress.t_range", low: []byte{0, 0, 0}, want: []byte{0}, wantHigh: []byte{0}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			table, ok := p.Table(tc.table)
@@ -67,24 +76,31 @@ func TestBMv2_FieldWidthMasks(t *testing.T) {
 			b := tableentry.NewBuilder(p, tc.table).
 				Action("MyIngress.forward", tableentry.Param("port", codec.MustEncodeUint(1, 9)))
 			value := []byte{0, 0, 1, 0xff}
-			if tc.table == "MyIngress.t_lpm" {
+			switch tc.table {
+			case "MyIngress.t_lpm":
 				b.Match(table.MatchFields[0].Name, tableentry.LPM(value, tc.prefix))
-			} else {
+			case "MyIngress.t_ternary":
 				mask := tc.mask
 				if mask == nil {
 					mask, err = codec.TernaryMask(int(tc.prefix), 9)
 					require.NoError(t, err)
 				}
 				b.Match(table.MatchFields[0].Name, tableentry.Ternary(value, mask)).Priority(10)
+			case "MyIngress.t_range":
+				b.Match(table.MatchFields[0].Name, tableentry.Range(tc.low, tc.high)).Priority(10)
 			}
 			entry, err := b.Build()
 			require.NoError(t, err)
 			require.Len(t, entry.Match, 1)
-			if tc.table == "MyIngress.t_lpm" {
+			switch tc.table {
+			case "MyIngress.t_lpm":
 				require.Equal(t, tc.want, entry.Match[0].GetLpm().Value)
-			} else {
+			case "MyIngress.t_ternary":
 				require.Equal(t, tc.want, entry.Match[0].GetTernary().Value)
 				require.Equal(t, tc.want, entry.Match[0].GetTernary().Mask)
+			case "MyIngress.t_range":
+				require.Equal(t, tc.want, entry.Match[0].GetRange().Low)
+				require.Equal(t, tc.wantHigh, entry.Match[0].GetRange().High)
 			}
 			err = c.WriteTableEntry(ctx, client.UpdateInsert, entry)
 			require.NoError(t, err, "target error details: %v", status.Convert(err).Details())
@@ -97,7 +113,7 @@ func TestBMv2_FieldWidthMasks(t *testing.T) {
 					break
 				}
 			}
-			require.NotNil(t, stored, "entry was not returned with the same field mask")
+			require.NotNil(t, stored, "entry was not returned with the same match value")
 			require.Equal(t, entry.Priority, stored.Priority)
 			require.True(t, proto.Equal(entry.Action, stored.Action))
 			key := &p4v1.TableEntry{TableId: entry.TableId, Match: entry.Match, Priority: entry.Priority}

@@ -92,6 +92,8 @@ The table entry builder handles wildcard omission separately. `Optional(nil)`, a
 
 LPM and prefix-style ternary masks count from the field's highest bit, excluding byte padding. For a 9-bit field, a full mask is `01ff`, and an 8-bit prefix mask is `01fe`. Mask helpers validate the value and mask before applying them, so masking cannot hide an input that exceeds the field width. Redundant leading zero bytes are accepted and removed from encoded values and masks.
 
+Range endpoints are normalized before comparison. Leading zero bytes do not affect their order, and the builder emits canonical low and high values.
+
 `internal/codec` provides these helpers:
 
 - `EncodeUint(uint64, bits)` — integer → canonical bytes.
