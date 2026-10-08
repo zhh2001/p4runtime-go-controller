@@ -95,6 +95,28 @@ go test -race -tags=integration -count=3 \
 
 Some PI versions omit `metadata` from idle notifications while returning it correctly through Read. The live test logs that omission and checks metadata when the notification contains it. A separate SDK test checks that a complete notification reaches the handler unchanged.
 
+## CLI value parsing
+
+`TestBMv2_TableValues` uses `testdata/table_values.p4`, with 128-bit keys and 129-bit action parameters. It runs the actual CLI through insert, read, modify and delete for EXACT, LPM, TERNARY, RANGE and OPTIONAL. It checks decimal values above 64 bits, IPv4, IPv6, mapped IPv6, MAC bytes, explicit hex and the ambiguity between IPv6 and eight colon-separated bytes. Invalid input must return an ordinary error and leave the table empty.
+
+Compile the pipeline pair and CLI from the repository root:
+
+```bash
+mkdir -p /tmp/p4runtime-integration/table-values
+p4c-bm2-ss --arch v1model \
+  --p4runtime-files /tmp/p4runtime-integration/table-values/table_values.p4info.txtpb \
+  -o /tmp/p4runtime-integration/table-values/table_values.json \
+  test/integration/testdata/table_values.p4
+go build -o /tmp/p4runtime-integration/p4ctl ./cmd/p4ctl
+P4RT_CLI_BIN=/tmp/p4runtime-integration/p4ctl \
+P4RT_VALUE_P4INFO=/tmp/p4runtime-integration/table-values/table_values.p4info.txtpb \
+P4RT_VALUE_DEVICE_CONFIG=/tmp/p4runtime-integration/table-values/table_values.json \
+go test -race -tags=integration -count=3 -v \
+  -run '^TestBMv2_TableValues$' ./test/integration/...
+```
+
+Both pipeline paths and the CLI binary are required. With neither pipeline path set, the test is skipped. It installs its pipeline on the selected plaintext target with device ID 1. The 128-bit LPM field is byte-aligned and does not use the 9-bit LPM cases described above.
+
 ## Digest subscriptions
 
 On Linux, `TestBMv2_DigestSubscriptions` uses `testdata/digests.p4` and real Ethernet input. It checks named subscriptions, explicit subscription to all digests, invalid names, decoded test data, duplicate suppression before ACK and delivery after ACK. It also cancels a named subscription before acknowledging its received batch and checks that the canceled callback receives no later batches.

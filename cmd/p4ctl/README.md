@@ -117,6 +117,22 @@ Match syntax:
 - `field=low..high` — RANGE
 - `field=?value` — OPTIONAL
 
+Match values, masks, range endpoints and action parameters share these literal forms:
+
+| Form                             | Example                           |
+| -------------------------------- | --------------------------------- |
+| Unsigned decimal                 | `511`, `18446744073709551616`     |
+| Hex with `0x` or `0X`            | `0x1ff`, `0X0001FF`               |
+| Colon-separated hex bytes        | `01:ff`, `00:11:22:33:44:55`      |
+| IPv4                             | `192.0.2.1`                       |
+| IPv6, including mapped addresses | `2001:db8::1`, `::ffff:192.0.2.1` |
+
+Every value must fit the field or parameter's P4Info bit width. Decimal values can exceed 64 bits when the declared width allows it. Leading zeros are accepted and removed from the wire encoding. Zero is sent as `00`. An IPv4 or IPv6 literal is encoded as its big-endian address value, without a port, zone or brackets.
+
+A valid IPv6 literal takes precedence over colon-separated bytes. To send eight raw bytes instead of the IPv6 address `01:02:03:04:05:06:07:08`, use `0x01:02:03:04:05:06:07:08`. Each colon-separated byte must have two hex digits. Unseparated hex may have an odd number of digits, such as `0x1ff`.
+
+Empty values, signed numbers, fractions, unprefixed hex text, malformed literals and values outside the declared width return an error before connecting. Plain text such as `port=x` is not accepted. Encode byte values explicitly with `0x`.
+
 Delete an entry using its match fields, without an action or parameters:
 
 ```sh

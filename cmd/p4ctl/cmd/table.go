@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
-	"github.com/zhh2001/p4runtime-go-controller/internal/codec"
+	errs "github.com/zhh2001/p4runtime-go-controller/errors"
 	"github.com/zhh2001/p4runtime-go-controller/pipeline"
 	"github.com/zhh2001/p4runtime-go-controller/tableentry"
 )
@@ -113,7 +113,7 @@ func tableWrite(cmd *cobra.Command, kind client.UpdateType) error {
 	if kind != client.UpdateDelete {
 		params := make([]tableentry.ActionParam, 0, len(tableParams))
 		for _, prm := range tableParams {
-			ap, err := parseActionParam(prm)
+			ap, err := parseActionParam(p, tableAction, prm)
 			if err != nil {
 				return err
 			}
@@ -150,9 +150,8 @@ func tableWrite(cmd *cobra.Command, kind client.UpdateType) error {
 //   - "name=low..high" → RANGE
 //   - "name=?value" → OPTIONAL (optional present)
 //
-// Values are interpreted based on common heuristics: colon-separated bytes
-// look like MAC/hex, dotted quads look like IPv4, plain numbers become the
-// canonical bytes for the declared bit width.
+// Values use the same literal syntax as action parameters and are checked
+// against the match field's declared bit width.
 func applyMatch(b *tableentry.Builder, p *pipeline.Pipeline, table, spec string) error {
 	eq := strings.IndexByte(spec, '=')
 	if eq < 0 {
@@ -168,11 +167,18 @@ func applyMatch(b *tableentry.Builder, p *pipeline.Pipeline, table, spec string)
 	if !ok {
 		return fmt.Errorf("field %q not on table %q", name, table)
 	}
+	decode := func(raw string) ([]byte, error) {
+		value, err := decodeValue(raw, int(mf.Bitwidth))
+		if err != nil {
+			return nil, fmt.Errorf("match %q: %w", name, err)
+		}
+		return value, nil
+	}
 
 	switch {
 	case strings.Contains(raw, "/"):
 		parts := strings.SplitN(raw, "/", 2)
-		v, err := decodeValue(parts[0], int(mf.Bitwidth))
+		v, err := decode(parts[0])
 		if err != nil {
 			return err
 		}
@@ -186,34 +192,34 @@ func applyMatch(b *tableentry.Builder, p *pipeline.Pipeline, table, spec string)
 		b.Match(name, tableentry.LPM(v, int32(prefix)))
 	case strings.Contains(raw, "&"):
 		parts := strings.SplitN(raw, "&", 2)
-		v, err := decodeValue(parts[0], int(mf.Bitwidth))
+		v, err := decode(parts[0])
 		if err != nil {
 			return err
 		}
-		m, err := decodeValue(parts[1], int(mf.Bitwidth))
+		m, err := decode(parts[1])
 		if err != nil {
 			return err
 		}
 		b.Match(name, tableentry.Ternary(v, m))
 	case strings.Contains(raw, ".."):
 		parts := strings.SplitN(raw, "..", 2)
-		low, err := decodeValue(parts[0], int(mf.Bitwidth))
+		low, err := decode(parts[0])
 		if err != nil {
 			return err
 		}
-		high, err := decodeValue(parts[1], int(mf.Bitwidth))
+		high, err := decode(parts[1])
 		if err != nil {
 			return err
 		}
 		b.Match(name, tableentry.Range(low, high))
 	case strings.HasPrefix(raw, "?"):
-		v, err := decodeValue(strings.TrimPrefix(raw, "?"), int(mf.Bitwidth))
+		v, err := decode(strings.TrimPrefix(raw, "?"))
 		if err != nil {
 			return err
 		}
 		b.Match(name, tableentry.Optional(v))
 	default:
-		v, err := decodeValue(raw, int(mf.Bitwidth))
+		v, err := decode(raw)
 		if err != nil {
 			return err
 		}
@@ -222,62 +228,25 @@ func applyMatch(b *tableentry.Builder, p *pipeline.Pipeline, table, spec string)
 	return nil
 }
 
-func decodeValue(raw string, bitwidth int) ([]byte, error) {
-	switch {
-	case strings.Contains(raw, ":"):
-		return codec.MAC(raw)
-	case strings.Count(raw, ".") == 3:
-		return codec.IPv4(raw)
-	case strings.HasPrefix(raw, "0x"):
-		return codec.ParseHex(raw)
-	default:
-		n, err := strconv.ParseUint(raw, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("value %q: %w", raw, err)
-		}
-		return codec.EncodeUint(n, bitwidth)
-	}
-}
-
-func parseActionParam(spec string) (tableentry.ActionParam, error) {
+func parseActionParam(p *pipeline.Pipeline, action, spec string) (tableentry.ActionParam, error) {
 	eq := strings.IndexByte(spec, '=')
 	if eq < 0 {
 		return tableentry.ActionParam{}, fmt.Errorf("bad param %q: expected name=value", spec)
 	}
-	return tableentry.ActionParam{
-		Name:  spec[:eq],
-		Value: unsafeDecode(spec[eq+1:]),
-	}, nil
-}
-
-// unsafeDecode picks a reasonable byte representation for action parameters,
-// favoring numeric / hex / dotted-quad / colon-hex forms.
-func unsafeDecode(raw string) []byte {
-	switch {
-	case strings.Contains(raw, ":"):
-		if b, err := codec.MAC(raw); err == nil {
-			return b
-		}
-		if b, err := codec.ParseHex(raw); err == nil {
-			return b
-		}
-	case strings.Count(raw, ".") == 3:
-		if b, err := codec.IPv4(raw); err == nil {
-			return b
-		}
-	case strings.HasPrefix(raw, "0x"):
-		if b, err := codec.ParseHex(raw); err == nil {
-			return b
-		}
+	name := spec[:eq]
+	definition, ok := p.Action(action)
+	if !ok {
+		return tableentry.ActionParam{}, fmt.Errorf("action %q not in pipeline", action)
 	}
-	if n, err := strconv.ParseUint(raw, 10, 64); err == nil {
-		// Default to 64-bit canonical encoding; the builder / pipeline
-		// will reject over-wide values.
-		if b, err := codec.EncodeUint(n, 64); err == nil {
-			return b
-		}
+	parameter, ok := definition.Param(name)
+	if !ok {
+		return tableentry.ActionParam{}, fmt.Errorf("%w: %q not on action %q", errs.ErrInvalidActionParam, name, action)
 	}
-	return []byte(raw)
+	value, err := decodeValue(spec[eq+1:], int(parameter.Bitwidth))
+	if err != nil {
+		return tableentry.ActionParam{}, fmt.Errorf("action %q param %q: %w", action, name, err)
+	}
+	return tableentry.Param(name, value), nil
 }
 
 func readPipeline(path string) (*pipeline.Pipeline, error) {
