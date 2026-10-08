@@ -14,6 +14,12 @@ Bump the timeout with `client.WithArbitrationTimeout(30 * time.Second)` and re-c
 
 The client lost primary status (stream drop + re-arbitration, or another controller took over with a higher election ID). Call `c.BecomePrimary(ctx)` to wait for primary to return, or bump the election ID.
 
+## CLI TLS connection fails
+
+`p4ctl --insecure=false` enables TLS and verifies the target certificate. Use `--tls-ca` for a private CA bundle and `--tls-server-name` when the certificate's DNS name differs from the address used to connect. For mutual TLS, both `--tls-cert` and `--tls-key` are required.
+
+Check that the target serves TLS, the certificate is valid for the requested name, and its issuer is trusted. Authentication failures can appear as a connection timeout while the SDK waits for arbitration. The CLI never falls back to plaintext. Use `--insecure=true` only when a plaintext connection is intended, and omit TLS-specific flags in that mode.
+
 ## SetForwardingPipelineConfig keeps failing
 
 The default call tries `VERIFY_AND_COMMIT`, then `RECONCILE_AND_COMMIT` only if the first action is explicitly unsupported. If both fail, the final error is returned. `NoFallback: true` disables the second attempt. Typical root causes:

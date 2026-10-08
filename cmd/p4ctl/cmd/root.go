@@ -15,13 +15,17 @@ var Version = "dev"
 
 // Global flags shared by every subcommand.
 type globalFlags struct {
-	Addr       string
-	DeviceID   uint64
-	Election   uint64
-	Role       string
-	Insecure   bool
-	ConfigPath string
-	Output     string
+	Addr          string
+	DeviceID      uint64
+	Election      uint64
+	Role          string
+	Insecure      bool
+	TLSCA         string
+	TLSServerName string
+	TLSCert       string
+	TLSKey        string
+	ConfigPath    string
+	Output        string
 }
 
 var g globalFlags
@@ -43,6 +47,10 @@ func init() {
 	rootCmd.PersistentFlags().Uint64Var(&g.Election, "election-id", 1, "election ID (low 64 bits)")
 	rootCmd.PersistentFlags().StringVar(&g.Role, "role", "", "role name (empty for full access)")
 	rootCmd.PersistentFlags().BoolVar(&g.Insecure, "insecure", true, "disable TLS (default true)")
+	rootCmd.PersistentFlags().StringVar(&g.TLSCA, "tls-ca", "", "PEM CA bundle for TLS (default system roots)")
+	rootCmd.PersistentFlags().StringVar(&g.TLSServerName, "tls-server-name", "", "TLS server name to verify (default target hostname)")
+	rootCmd.PersistentFlags().StringVar(&g.TLSCert, "tls-cert", "", "PEM client certificate for mutual TLS")
+	rootCmd.PersistentFlags().StringVar(&g.TLSKey, "tls-key", "", "PEM client private key for mutual TLS")
 	rootCmd.PersistentFlags().StringVar(&g.ConfigPath, "config", "", "path to config file (default $HOME/.p4ctl.yaml)")
 	rootCmd.PersistentFlags().StringVar(&g.Output, "output", "table", "output format: table|json|yaml")
 
