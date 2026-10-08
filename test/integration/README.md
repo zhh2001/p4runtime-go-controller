@@ -12,7 +12,7 @@ In another terminal, run `make e2e` or `./scripts/test-bmv2.sh`. The test script
 
 For custom ports, start with `./scripts/run-bmv2.sh -p 10559 -t 10090` and use `P4RT_TARGET=127.0.0.1:10559 make e2e`. To reuse L2 artifacts, set `P4RT_P4INFO` and `P4RT_DEVICE_CONFIG` together. These tests expect the bundled L2 program. With only one path set, the test script returns an error. Extra Go test flags can be passed directly, for example `./scripts/test-bmv2.sh -v -run '^TestBMv2_PacketCPUPort$'`.
 
-Enable masks, CLI, raw Ethernet, examples and the fresh-target test with the settings below.
+Enable masks, CLI, raw Ethernet, replication, examples and the fresh-target test with the settings below.
 
 The 9-bit LPM, TERNARY, and RANGE tests use `testdata/masks.p4`. From the repository root, compile its P4Info and device configuration together:
 
@@ -116,6 +116,38 @@ go test -race -tags=integration -count=3 -v \
 ```
 
 Both pipeline paths and the CLI binary are required. With neither pipeline path set, the test is skipped. It installs its pipeline on the selected plaintext target with device ID 1. The 128-bit LPM field is byte-aligned and does not use the 9-bit LPM cases described above.
+
+## Packet replication
+
+`TestBMv2_PRE` uses the bundled L2 pipeline to insert, read, modify and delete multicast groups and clone sessions. It checks legacy ports, byte ports with leading zeros and mixed replica sets. It also modifies entries directly from their read results. Run it on a target with device ID 1:
+
+```bash
+./scripts/test-bmv2.sh -count=3 -v -run '^TestBMv2_PRE$'
+```
+
+On Linux, `TestBMv2_PREDataplane` uses `testdata/replication.p4` and two veth ports. It captures multicast and cloned frames, checks each replica's instance, changes the output port through Modify and verifies that Delete stops replication. The program places the instance in the last byte of the source MAC. It uses multicast group 19 and clone session 319.
+
+Compile the pipeline pair from the repository root:
+
+```bash
+mkdir -p /tmp/p4runtime-integration/replication
+p4c-bm2-ss --arch v1model \
+  --p4runtime-files /tmp/p4runtime-integration/replication/replication.p4info.txtpb \
+  -o /tmp/p4runtime-integration/replication/replication.json \
+  test/integration/testdata/replication.p4
+go test -c -race -tags=integration \
+  -o /tmp/p4runtime-integration/integration.test ./test/integration
+sudo env P4RT_TARGET=127.0.0.1:9559 \
+  P4RT_PRE_P4INFO=/tmp/p4runtime-integration/replication/replication.p4info.txtpb \
+  P4RT_PRE_DEVICE_CONFIG=/tmp/p4runtime-integration/replication/replication.json \
+  P4RT_HOST_IFACE1=host1 P4RT_HOST_IFACE2=host2 \
+  /tmp/p4runtime-integration/integration.test \
+  -test.v -test.count=3 -test.run '^TestBMv2_PREDataplane$'
+```
+
+Bind target ports 1 and 2 to the switch ends of two veth pairs, then replace `host1` and `host2` with their host ends. The binary needs raw socket permission. With neither PRE pipeline path set, the data plane test is skipped. Setting only one path fails. Each test installs its pipeline.
+
+The BMv2 tests use numeric ports and untruncated clones. Some BMv2/PI versions reject nonzero clone truncation lengths and do not support backup failover. SDK tests against a controlled server cover wide and string ports, backup order, truncation lengths and complete read-modify-write preservation. These protocol checks do not establish target support for those features.
 
 ## Digest subscriptions
 

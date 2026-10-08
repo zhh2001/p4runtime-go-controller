@@ -12,6 +12,7 @@
 package pre
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -23,9 +24,21 @@ import (
 
 // Replica is a single replica in a multicast group or clone session.
 // Instance distinguishes replicas that share the same egress port.
+// Set EgressPort for the legacy uint32 field, or Port for the P4Runtime 1.4+
+// byte field. Port is opaque and retains the target's port representation.
+// The two fields are mutually exclusive.
 type Replica struct {
-	EgressPort uint32
-	Instance   uint32
+	EgressPort     uint32
+	Instance       uint32
+	Port           []byte
+	BackupReplicas []BackupReplica
+}
+
+// BackupReplica is a P4Runtime 1.5+ fallback, used in list order when the
+// primary port and earlier backup ports are down. Port is opaque.
+type BackupReplica struct {
+	Port     []byte
+	Instance uint32
 }
 
 // MulticastGroup describes a PRE multicast group entry.
@@ -103,9 +116,13 @@ func (w *Writer) ReadMulticastGroups(ctx context.Context, id uint32) ([]Multicas
 		if mge == nil {
 			continue
 		}
+		replicas, err := decodeReplicas(mge.GetReplicas())
+		if err != nil {
+			return nil, fmt.Errorf("pre.ReadMulticastGroups: group %d: %w", mge.GetMulticastGroupId(), err)
+		}
 		out = append(out, MulticastGroup{
 			ID:       mge.GetMulticastGroupId(),
-			Replicas: decodeReplicas(mge.GetReplicas()),
+			Replicas: replicas,
 			Metadata: mge.GetMetadata(),
 		})
 	}
@@ -151,9 +168,13 @@ func (w *Writer) ReadCloneSessions(ctx context.Context, id uint32) ([]CloneSessi
 		if cse == nil {
 			continue
 		}
+		replicas, err := decodeReplicas(cse.GetReplicas())
+		if err != nil {
+			return nil, fmt.Errorf("pre.ReadCloneSessions: session %d: %w", cse.GetSessionId(), err)
+		}
 		out = append(out, CloneSession{
 			ID:                cse.GetSessionId(),
-			Replicas:          decodeReplicas(cse.GetReplicas()),
+			Replicas:          replicas,
 			ClassOfService:    cse.GetClassOfService(),
 			PacketLengthBytes: cse.GetPacketLengthBytes(),
 		})
@@ -223,27 +244,54 @@ func cloneUpdate(kind client.UpdateType, cs CloneSession) *p4v1.Update {
 func encodeReplicas(rs []Replica) []*p4v1.Replica {
 	out := make([]*p4v1.Replica, 0, len(rs))
 	for _, r := range rs {
-		out = append(out, &p4v1.Replica{
-			PortKind: &p4v1.Replica_EgressPort{EgressPort: r.EgressPort}, //nolint:staticcheck // P4Runtime 1.3 targets use egress_port.
-			Instance: r.Instance,
-		})
+		replica := &p4v1.Replica{Instance: r.Instance}
+		if r.Port != nil {
+			replica.PortKind = &p4v1.Replica_Port{Port: bytes.Clone(r.Port)}
+		} else {
+			replica.PortKind = &p4v1.Replica_EgressPort{EgressPort: r.EgressPort} //nolint:staticcheck // P4Runtime 1.3 targets use egress_port.
+		}
+		for _, backup := range r.BackupReplicas {
+			replica.BackupReplicas = append(replica.BackupReplicas, &p4v1.BackupReplica{
+				Port: bytes.Clone(backup.Port), Instance: backup.Instance,
+			})
+		}
+		out = append(out, replica)
 	}
 	return out
 }
 
-func decodeReplicas(rs []*p4v1.Replica) []Replica {
+func decodeReplicas(rs []*p4v1.Replica) ([]Replica, error) {
 	out := make([]Replica, 0, len(rs))
-	for _, r := range rs {
-		// GetEgressPort is marked deprecated in newer P4Runtime protos in
-		// favor of the bytes-typed Port field, but BMv2 and most 1.3.x
-		// targets still emit and accept egress_port. Keep using it for
-		// now; switch when targets ubiquitously advertise the new field.
-		out = append(out, Replica{
-			EgressPort: r.GetEgressPort(), //nolint:staticcheck // legacy BMv2-compatible field
-			Instance:   r.GetInstance(),
-		})
+	for i, r := range rs {
+		if r == nil {
+			return nil, fmt.Errorf("pre: replica[%d] is nil", i)
+		}
+		replica := Replica{Instance: r.GetInstance()}
+		switch port := r.GetPortKind().(type) {
+		case *p4v1.Replica_EgressPort: //nolint:staticcheck // P4Runtime 1.3 targets use egress_port.
+			if port == nil || port.EgressPort == 0 { //nolint:staticcheck // Legacy field must retain its uint32 representation.
+				return nil, fmt.Errorf("pre: replica[%d] egress port must be non-zero", i)
+			}
+			replica.EgressPort = port.EgressPort //nolint:staticcheck // Preserve the legacy oneof arm.
+		case *p4v1.Replica_Port:
+			if port == nil || len(port.Port) == 0 {
+				return nil, fmt.Errorf("pre: replica[%d] port must not be empty", i)
+			}
+			replica.Port = bytes.Clone(port.Port)
+		default:
+			return nil, fmt.Errorf("pre: replica[%d] port is missing", i)
+		}
+		for j, backup := range r.GetBackupReplicas() {
+			if backup == nil || len(backup.GetPort()) == 0 {
+				return nil, fmt.Errorf("pre: replica[%d] backup[%d] port must not be empty", i, j)
+			}
+			replica.BackupReplicas = append(replica.BackupReplicas, BackupReplica{
+				Port: bytes.Clone(backup.GetPort()), Instance: backup.GetInstance(),
+			})
+		}
+		out = append(out, replica)
 	}
-	return out
+	return out, nil
 }
 
 func validateReplicas(rs []Replica) error {
@@ -251,8 +299,18 @@ func validateReplicas(rs []Replica) error {
 		return errors.New("pre: replicas must not be empty")
 	}
 	for i, r := range rs {
-		if r.EgressPort == 0 {
+		switch {
+		case r.Port != nil && r.EgressPort != 0:
+			return fmt.Errorf("pre: replica[%d] must set only one of EgressPort and Port", i)
+		case r.Port != nil && len(r.Port) == 0:
+			return fmt.Errorf("pre: replica[%d] port must not be empty", i)
+		case r.Port == nil && r.EgressPort == 0:
 			return fmt.Errorf("pre: replica[%d] egress port must be non-zero", i)
+		}
+		for j, backup := range r.BackupReplicas {
+			if len(backup.Port) == 0 {
+				return fmt.Errorf("pre: replica[%d] backup[%d] port must not be empty", i, j)
+			}
 		}
 	}
 	return nil

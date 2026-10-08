@@ -8,7 +8,7 @@ This document describes the package layout, session lifecycle, request flows, an
 flowchart TD
     subgraph User[Controller process]
         app[Application logic]
-        app --> api[Public API: client / pipeline / tableentry / packetio / digest / counter / meter / register]
+        app --> api[Public API: client / pipeline / tableentry / packetio / digest / counter / meter / register / pre]
     end
 
     api --> obs[Observability: metrics / tracing / log/slog]
@@ -133,6 +133,8 @@ The context passed to `Dial` bounds connection setup. The session has its own co
 The table entry builder encodes match fields and action parameters before a write request is sent. This lets callers inspect the resulting proto and report validation errors before making an RPC.
 
 `pipeline.Pipeline` keeps P4Info indexes for lookups by name and ID. The device configuration remains an opaque blob and is passed to the target unchanged.
+
+The `pre` package preserves the replica port's wire representation. Legacy `EgressPort` values use the uint32 field. `Port` holds opaque bytes, including translated port names and values wider than uint32. Reads retain the selected field, and read-modify-write retains backup replicas in order. Target support determines which port fields and backup configurations can be used. See [Packet replication](pre/README.md) for validation and caller migration.
 
 ### Logging and tracing
 
