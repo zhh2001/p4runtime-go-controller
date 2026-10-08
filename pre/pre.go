@@ -224,7 +224,7 @@ func encodeReplicas(rs []Replica) []*p4v1.Replica {
 	out := make([]*p4v1.Replica, 0, len(rs))
 	for _, r := range rs {
 		out = append(out, &p4v1.Replica{
-			PortKind: &p4v1.Replica_EgressPort{EgressPort: r.EgressPort},
+			PortKind: &p4v1.Replica_EgressPort{EgressPort: r.EgressPort}, //nolint:staticcheck // P4Runtime 1.3 targets use egress_port.
 			Instance: r.Instance,
 		})
 	}

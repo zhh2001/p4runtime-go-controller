@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -55,7 +56,7 @@ func main() {
 	case err == nil:
 		fmt.Printf("pipeline installed: %d tables, %d actions\n",
 			len(pipeline.Tables()), len(pipeline.Info().GetActions()))
-	case errorsIs(err, perrors.ErrPipelineNotSet):
+	case errors.Is(err, perrors.ErrPipelineNotSet):
 		fmt.Println("no pipeline installed — run example 02 to push one")
 	default:
 		log.Fatalf("get pipeline: %v", err)
@@ -63,24 +64,4 @@ func main() {
 
 	<-ctx.Done()
 	fmt.Fprintln(os.Stderr, "shutting down")
-}
-
-// errorsIs is a tiny local helper to avoid importing stdlib `errors` twice.
-func errorsIs(err, target error) bool {
-	type iser interface{ Is(error) bool }
-	for err != nil {
-		if err == target {
-			return true
-		}
-		if ix, ok := err.(iser); ok && ix.Is(target) {
-			return true
-		}
-		type unwrapper interface{ Unwrap() error }
-		if u, ok := err.(unwrapper); ok {
-			err = u.Unwrap()
-			continue
-		}
-		break
-	}
-	return false
 }

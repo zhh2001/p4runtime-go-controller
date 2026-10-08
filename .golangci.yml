@@ -1,3 +1,5 @@
+version: "2"
+
 run:
   timeout: 5m
   tests: true
@@ -5,19 +7,18 @@ run:
     - integration
 
 output:
-  sort-results: true
+  sort-order:
+    - file
+    - linter
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
-    - gofmt
-    - goimports
     - misspell
     - revive
     - gosec
@@ -28,46 +29,69 @@ linters:
     - unconvert
     - unparam
 
-linters-settings:
-  gofmt:
-    simplify: true
-  goimports:
-    local-prefixes: github.com/zhh2001/p4runtime-go-controller
-  revive:
+  settings:
+    staticcheck:
+      # Keep the checks previously supplied by gosimple and staticcheck.
+      checks:
+        - all
+        - "-ST*"
+        - "-QF*"
+    revive:
+      rules:
+        - name: exported
+          severity: warning
+          disabled: false
+        - name: package-comments
+        - name: indent-error-flow
+        - name: var-naming
+    misspell:
+      locale: US
+    gosec:
+      excludes:
+        - G404 # math/rand is fine in tests and non-cryptographic paths
+        - G115 # int->uint conversions are bounds-checked at source
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+  exclusions:
+    generated: lax
     rules:
-      - name: exported
-        severity: warning
-        disabled: false
-      - name: package-comments
-      - name: indent-error-flow
-      - name: var-naming
-  misspell:
-    locale: US
-  gosec:
-    excludes:
-      - G404 # math/rand is fine in tests and non-cryptographic paths
-      - G115 # int->uint conversions are bounds-checked at source; gosec G115 is noisy
-  errorlint:
-    errorf: true
-    asserts: true
-    comparison: true
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
+          - unparam
+      - path: examples/
+        linters:
+          - errcheck
+          - gosec
+      - path: cmd/p4ctl/
+        linters:
+          - errcheck # CLI tolerates best-effort Close / Fprint on exit paths
+          - gosec # CLI intentionally reads user-supplied paths (G304)
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 
 issues:
-  exclude-use-default: false
   max-same-issues: 0
   max-issues-per-linter: 0
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gosec
-        - errcheck
-        - unparam
-    - path: examples/
-      linters:
-        - errcheck
-        - gosec
-    - path: cmd/p4ctl/
-      linters:
-        - gochecknoglobals
-        - errcheck   # CLI tolerates best-effort Close / Fprint on exit paths
-        - gosec      # CLI intentionally reads user-supplied paths (G304)
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/zhh2001/p4runtime-go-controller
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

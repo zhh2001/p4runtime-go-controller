@@ -1,5 +1,6 @@
 GO ?= go
 GOLANGCI_LINT ?= golangci-lint
+LINT_GO_VERSION ?= go1.27.1
 GOVULNCHECK ?= govulncheck
 
 COVER_PROFILE ?= coverage.out
@@ -24,7 +25,7 @@ vet:
 
 .PHONY: lint
 lint:
-	$(GOLANGCI_LINT) run $(PKG)
+	GOTOOLCHAIN=$(LINT_GO_VERSION) $(GOLANGCI_LINT) run $(PKG)
 
 .PHONY: fmt
 fmt:

@@ -128,8 +128,8 @@ func TestMulticastGroup_Read(t *testing.T) {
 						MulticastGroupEntry: &p4v1.MulticastGroupEntry{
 							MulticastGroupId: 7,
 							Replicas: []*p4v1.Replica{
-								{PortKind: &p4v1.Replica_EgressPort{EgressPort: 1}},
-								{PortKind: &p4v1.Replica_EgressPort{EgressPort: 2}, Instance: 1},
+								{PortKind: &p4v1.Replica_EgressPort{EgressPort: 1}},              //nolint:staticcheck // Exercise the P4Runtime 1.3 field.
+								{PortKind: &p4v1.Replica_EgressPort{EgressPort: 2}, Instance: 1}, //nolint:staticcheck // Exercise the P4Runtime 1.3 field.
 							},
 							Metadata: []byte("cookie"),
 						},
@@ -194,7 +194,7 @@ func TestCloneSession_Read(t *testing.T) {
 					Type: &p4v1.PacketReplicationEngineEntry_CloneSessionEntry{
 						CloneSessionEntry: &p4v1.CloneSessionEntry{
 							SessionId: 100,
-							Replicas:  []*p4v1.Replica{{PortKind: &p4v1.Replica_EgressPort{EgressPort: 5}}},
+							Replicas:  []*p4v1.Replica{{PortKind: &p4v1.Replica_EgressPort{EgressPort: 5}}}, //nolint:staticcheck // Exercise the P4Runtime 1.3 field.
 						},
 					},
 				},
