@@ -158,6 +158,8 @@ func (c *Client) forwardEvents() {
 // Close tears the client down. It cancels the supervisor, closes the
 // bidirectional stream, and closes the gRPC connection. It is safe to call
 // multiple times; only the first invocation does work.
+// A stream handler may call Close. Close does not wait for handlers already
+// in progress to return.
 func (c *Client) Close() error {
 	var closeErr error
 	c.once.Do(func() {

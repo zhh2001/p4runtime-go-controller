@@ -27,8 +27,7 @@ Initial public release.
   ignore files.
 - Governance documents: CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, SUPPORT,
   MAINTAINERS.
-- Architecture and design notes (`ARCHITECTURE.md`, `docs/architecture.md`,
-  `DESIGN_NOTES.md`).
+- Architecture documentation (`ARCHITECTURE.md`, `docs/architecture.md`).
 - Sentinel errors in the `errors` package (`ErrNotPrimary`,
   `ErrPipelineNotSet`, `ErrEntryExists`, `ErrEntryNotFound`,
   `ErrUnsupportedMatchKind`, `ErrTargetUnsupported`, `ErrStreamClosed`,

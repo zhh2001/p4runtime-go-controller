@@ -168,15 +168,17 @@ func (s *Supervisor) Start(ctx context.Context) {
 	go s.run(ctx)
 }
 
-// Close shuts the supervisor down and waits for the goroutine to exit.
+// Close shuts the supervisor down and waits for the main loop to exit.
+// It does not wait for a packet handler already in progress, so handlers can
+// call Close themselves.
 func (s *Supervisor) Close() {
 	s.once.Do(func() { close(s.stop) })
 	<-s.stopped
 }
 
 func (s *Supervisor) run(parent context.Context) {
-	defer close(s.events)
 	defer close(s.stopped)
+	defer close(s.events)
 
 	backoff := s.cfg.BackoffInitial
 	for {
@@ -251,6 +253,8 @@ func (s *Supervisor) arbitrate(ctx context.Context, stream p4v1.P4Runtime_Stream
 		ch <- recvResult{m, e}
 	}()
 	select {
+	case <-s.stop:
+		return fmt.Errorf("arbitration: %w", errStopped)
 	case <-deadline.Done():
 		return fmt.Errorf("arbitration: %w", deadline.Err())
 	case r := <-ch:
@@ -261,33 +265,33 @@ func (s *Supervisor) arbitrate(ctx context.Context, stream p4v1.P4Runtime_Stream
 		if arb == nil {
 			return fmt.Errorf("first stream message was %T, expected arbitration", r.msg.GetUpdate())
 		}
-		primary := statusOK(arb.GetStatus())
-		s.setPrimary(primary)
-		if primary {
-			s.setState(StatePrimary, nil)
-		} else {
-			s.setState(StateBackup, nil)
-		}
+		s.applyArbitration(arb)
 		return nil
 	}
 }
 
 func (s *Supervisor) serve(ctx context.Context, stream p4v1.P4Runtime_StreamChannelClient) {
 	recvErr := make(chan error, 1)
+	arbitration := make(chan *p4v1.MasterArbitrationUpdate)
 	go func() {
 		for {
+			if ctx.Err() != nil {
+				return
+			}
 			msg, err := stream.Recv()
 			if err != nil {
 				recvErr <- err
 				return
 			}
+			if ctx.Err() != nil {
+				return
+			}
 			if arb := msg.GetArbitration(); arb != nil {
-				primary := statusOK(arb.GetStatus())
-				s.setPrimary(primary)
-				if primary {
-					s.setState(StatePrimary, nil)
-				} else {
-					s.setState(StateBackup, nil)
+				// Only the main loop updates state and publishes events.
+				select {
+				case arbitration <- arb:
+				case <-ctx.Done():
+					return
 				}
 				continue
 			}
@@ -303,6 +307,8 @@ func (s *Supervisor) serve(ctx context.Context, stream p4v1.P4Runtime_StreamChan
 			return
 		case <-s.stop:
 			return
+		case arb := <-arbitration:
+			s.applyArbitration(arb)
 		case err := <-recvErr:
 			s.setState(StateDisconnected, err)
 			return
@@ -312,6 +318,16 @@ func (s *Supervisor) serve(ctx context.Context, stream p4v1.P4Runtime_StreamChan
 				return
 			}
 		}
+	}
+}
+
+func (s *Supervisor) applyArbitration(arb *p4v1.MasterArbitrationUpdate) {
+	primary := statusOK(arb.GetStatus())
+	s.setPrimary(primary)
+	if primary {
+		s.setState(StatePrimary, nil)
+	} else {
+		s.setState(StateBackup, nil)
 	}
 }
 

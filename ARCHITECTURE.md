@@ -1,8 +1,6 @@
 # Architecture
 
-This document describes the layered design of `p4runtime-go-controller`, the
-main data flows, and the key sequence diagrams. See
-[`DESIGN_NOTES.md`](DESIGN_NOTES.md) for the rationale behind each choice.
+This document describes the package layout, session lifecycle, request flows, and design decisions in `p4runtime-go-controller`.
 
 ## Layered View
 
@@ -21,9 +19,7 @@ flowchart TD
     api -->|unary gRPC| target
 ```
 
-The layering is strict: package `client` imports `internal/stream`, never the
-reverse. The public `errors` package is the only one that is safe to import
-from every other package.
+The layering is strict: package `client` imports `internal/stream`, never the reverse. The public `errors` package is the only one that is safe to import from every other package.
 
 ## Session Lifecycle
 
@@ -109,28 +105,55 @@ sequenceDiagram
 
 ## Concurrency Model
 
-- `client.Client` is safe for concurrent use. The gRPC stub is already
-  goroutine-safe. State that is not (mastership flag, last-known election ID,
-  stream handle) lives behind a `sync.RWMutex` with the narrowest possible
-  critical section.
-- `internal/stream.Supervisor` owns exactly one goroutine plus a receive
-  goroutine per connected stream. Both terminate within a bounded deadline when
-  the caller-provided context is cancelled.
-- No `time.Sleep` without a select on `ctx.Done()`. No unbuffered goroutine
-  leaks under `-race`.
+- The gRPC client supports concurrent calls. The stream supervisor guards its observable state with a `sync.RWMutex`.
+- `internal/stream.Supervisor` runs a send loop and a receive goroutine for each connected stream.
+- The main loop applies arbitration updates and publishes state events. It closes the event channel after canceling the active stream.
+- Packet, digest, and idle timeout handlers run in the receive goroutine. Handlers should return quickly and send slow work to a worker or channel.
+- A handler can call `Client.Close`. Close does not wait for a handler already in progress. The receive goroutine exits when the handler returns.
+
+## Design Decisions
+
+### Module and API compatibility
+
+The module path is `github.com/zhh2001/p4runtime-go-controller`. Releases in the v1 series keep this path. An incompatible v2 release would use a `/v2` module path.
+
+### Session ownership
+
+`Client` owns the gRPC connection and stream supervisor. The supervisor reopens StreamChannel and repeats arbitration after a disconnect, using exponential backoff with jitter.
+
+The context passed to `Dial` bounds connection setup. The session has its own context so it can continue after `Dial` returns. Callers stop the session with `Client.Close` and pass a context to each blocking operation.
+
+### Encoding and validation
+
+The table entry builder encodes match fields and action parameters before a write request is sent. This lets callers inspect the resulting proto and report validation errors before making an RPC.
+
+`pipeline.Pipeline` keeps P4Info indexes for lookups by name and ID. The device configuration remains an opaque blob and is passed to the target unchanged.
+
+### Logging and tracing
+
+Logging uses `log/slog`. Callers can provide a logger and gRPC interceptors through client options. Tracing integrations can use those interceptors without adding a tracing dependency to the core library.
+
+### Election IDs
+
+`ElectionID` stores a 128-bit unsigned value as `High` and `Low`. Comparisons use the high half first. `Increment` returns false at the maximum value and leaves the value unchanged, avoiding an accidental wrap to zero.
+
+### Target capabilities
+
+Write requests expose the P4Runtime atomicity setting. Support for rollback, data plane atomicity, and pipeline reconciliation depends on the target. Applications must handle unsupported operations.
+
+Election coordination between controller processes is outside the SDK. Applications can use an external coordination service to assign election IDs.
+
+Stream requests use a bounded queue. Receive handlers run inline, so their execution time affects the next receive. Queue sizing and delivery policies are areas for future configuration.
 
 ## Error Classification
 
-Sentinel errors in the public `errors` package let callers react
-programmatically:
+Sentinel errors in the public `errors` package let callers react programmatically:
 
 - `ErrNotPrimary` — operation requires primary mastership.
 - `ErrPipelineNotSet` — target has no active pipeline yet.
 - `ErrEntryExists` / `ErrEntryNotFound` — write-path idempotency helpers.
 - `ErrUnsupportedMatchKind` — match kind not supported by the target pipeline.
-- `ErrTargetUnsupported` — target does not support the attempted feature (e.g.,
-  `VERIFY_AND_COMMIT`).
+- `ErrTargetUnsupported` — target does not support the attempted feature (e.g., `VERIFY_AND_COMMIT`).
 - `ErrStreamClosed` — stream was closed by the target or by `Client.Close`.
 
-The concrete error type wraps the gRPC status so callers can still use
-`status.FromError`.
+The concrete error type wraps the gRPC status so callers can still use `status.FromError`.

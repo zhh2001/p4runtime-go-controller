@@ -93,3 +93,30 @@ func TestStream_SendAckAndNilGuards(t *testing.T) {
 	assert.Error(t, c.SendDigestAck(ctx, nil))
 	assert.Error(t, c.SendPacketOut(ctx, nil))
 }
+
+func TestStream_HandlerCanCloseClient(t *testing.T) {
+	h := testutil.StartServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, err := dialViaHarness(ctx, h)
+	require.NoError(t, err)
+	defer c.Close()
+
+	closed := make(chan error, 1)
+	c.OnPacketIn(func(_ context.Context, _ *p4v1.PacketIn) {
+		closed <- c.Close()
+	})
+	require.Eventually(t, func() bool {
+		return h.PushStreamMessage(&p4v1.StreamMessageResponse{
+			Update: &p4v1.StreamMessageResponse_Packet{Packet: &p4v1.PacketIn{}},
+		}) == nil
+	}, time.Second, 10*time.Millisecond)
+	select {
+	case err := <-closed:
+		require.NoError(t, err)
+	case <-ctx.Done():
+		t.Fatal("Close blocked inside the packet handler")
+	}
+	for range c.Events() {
+	}
+}

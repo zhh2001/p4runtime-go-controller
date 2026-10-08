@@ -11,7 +11,7 @@ import (
 )
 
 // PacketInHandler is invoked for every PacketIn arriving on the
-// bidirectional stream. Handlers run on the supervisor goroutine and must
+// bidirectional stream. Handlers run on the stream receive goroutine and must
 // return quickly; offload slow work to a channel or a worker pool.
 type PacketInHandler func(ctx context.Context, msg *p4v1.PacketIn)
 
