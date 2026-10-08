@@ -159,20 +159,36 @@ func TestBMv2LauncherCompilationFailure(t *testing.T) {
 }
 
 func TestBMv2LauncherNativeForeground(t *testing.T) {
-	f := newScriptFixture(t)
-	f.write(t, "bin/switch", `#!/usr/bin/env bash
+	for _, interfaces := range [][]string{nil, {"1@host1"}, {"1@host1", "2@host2"}} {
+		t.Run(strings.Join(interfaces, ","), func(t *testing.T) {
+			f := newScriptFixture(t)
+			f.write(t, "bin/switch", `#!/usr/bin/env bash
 printf '%s\n' "$@" >> "$CAPTURE"
 exit 43
 `)
-	output, code := f.run(t, "run-bmv2.sh", "-p10559", "-t10090", "--output", filepath.Join(f.root, "artifacts"))
-	require.Equal(t, 43, code, "the foreground target's status must reach the caller: %s", output)
-	require.Contains(t, f.calls(t), "--grpc-server-addr\n127.0.0.1:10559\n")
+			args := []string{"-p10559", "-t10090", "--output", filepath.Join(f.root, "artifacts")}
+			bindings := ""
+			for _, binding := range interfaces {
+				args = append(args, "--interface", binding)
+				bindings += "-i\n" + binding + "\n"
+			}
+			output, code := f.run(t, "run-bmv2.sh", args...)
+			require.Equal(t, 43, code, "the foreground target's status must reach the caller: %s", output)
+			require.Contains(t, f.calls(t), "--log-console\n"+bindings+"--notifications-addr\n")
+			require.Contains(t, f.calls(t), "--grpc-server-addr\n127.0.0.1:10559\n")
+		})
+	}
 }
 
 func TestBMv2TestScriptPipelinePaths(t *testing.T) {
-	for _, name := range []string{"compile", "relative pair", "missing pair", "empty file"} {
+	for _, name := range []string{"compile", "relative pair", "symlinked project", "missing pair", "empty file"} {
 		t.Run(name, func(t *testing.T) {
 			f := newScriptFixture(t)
+			if name == "symlinked project" {
+				link := filepath.Join(t.TempDir(), "linked project")
+				require.NoError(t, os.Symlink(f.root, link))
+				f.root = link
+			}
 			f.write(t, "bin/go", `#!/usr/bin/env bash
 printf '%s\n' "$P4RT_P4INFO" "$P4RT_DEVICE_CONFIG" "$P4RT_TARGET" "$PWD" "$@" >> "$CAPTURE"
 exit 37
@@ -206,12 +222,28 @@ exit 37
 				require.Empty(t, calls)
 			default:
 				require.Equal(t, 37, code, "Go test's status must reach the caller: %s", output)
-				require.Contains(t, calls, expectedInfo+"\n"+expectedConfig+"\n127.0.0.1:10559\n"+f.root+"\n")
-				require.Contains(t, calls, "-race\n-tags=integration\n-count=1\n-run\nTestBMv2_PacketCPUPort\n./test/integration/...\n")
-				if name == "relative pair" {
-					require.NotContains(t, calls, "compile\n")
+				lines := strings.Split(strings.TrimSuffix(calls, "\n"), "\n")
+				if name == "compile" {
+					require.Equal(t, "compile", lines[0])
+					lines = lines[1:]
 				}
+				require.Len(t, lines, 11)
+				requireSamePath(t, expectedInfo, lines[0])
+				requireSamePath(t, expectedConfig, lines[1])
+				require.Equal(t, "127.0.0.1:10559", lines[2])
+				requireSamePath(t, f.root, lines[3])
+				require.Equal(t, []string{"test", "-race", "-tags=integration", "-count=1", "-run", "TestBMv2_PacketCPUPort", "./test/integration/..."}, lines[4:])
 			}
 		})
 	}
+}
+
+func requireSamePath(t *testing.T, expected, actual string) {
+	t.Helper()
+	require.True(t, filepath.IsAbs(actual), "path must be absolute: %s", actual)
+	want, err := os.Stat(expected)
+	require.NoError(t, err)
+	got, err := os.Stat(actual)
+	require.NoError(t, err)
+	require.True(t, os.SameFile(want, got), "%s and %s must identify the same file", expected, actual)
 }

@@ -64,7 +64,8 @@ PORT="$((10#${PORT}))"
 THRIFT_PORT="$((10#${THRIFT_PORT}))"
 [[ "${PORT}" != "${THRIFT_PORT}" ]] || fail "gRPC and Thrift ports must differ"
 
-for BINDING in "${INTERFACES[@]}"; do
+# Bash 3.2 treats an empty array as unset under nounset.
+for BINDING in ${INTERFACES[@]+"${INTERFACES[@]}"}; do
   [[ "${BINDING}" =~ ^([0-9]{1,3})@([a-zA-Z0-9_.:-]+)$ ]] || fail "Invalid interface binding: ${BINDING}"
   DATA_PORT="$((10#${BASH_REMATCH[1]}))"
   (( DATA_PORT < 511 && DATA_PORT != 255 )) || fail "Data ports must be 0..510 except CPU port 255"
@@ -86,7 +87,7 @@ fi
 "${ROOT}/scripts/compile-l2.sh" "${OUTPUT}"
 OUTPUT="$(cd "${OUTPUT}" && pwd)"
 SWITCH_ARGS=(--no-p4 --device-id 1 --thrift-port "${THRIFT_PORT}" --log-console)
-for BINDING in "${INTERFACES[@]}"; do
+for BINDING in ${INTERFACES[@]+"${INTERFACES[@]}"}; do
   SWITCH_ARGS+=(-i "${BINDING}")
 done
 

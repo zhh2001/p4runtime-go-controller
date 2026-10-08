@@ -341,3 +341,23 @@ func TestSupervisorGracefulCloseTimeoutAndAbort(t *testing.T) {
 		})
 	}
 }
+
+func TestSupervisorGracefulCloseCanceledTransport(t *testing.T) {
+	for _, phase := range []string{"half-close", "receive"} {
+		t.Run(phase, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			recvErr := make(chan error, 1)
+			transport := &lifecycleStream{closeSend: func() error {
+				cancel()
+				if phase == "half-close" {
+					return context.Canceled
+				}
+				recvErr <- context.Canceled
+				return nil
+			}}
+			s := New(Config{}, nil, nil)
+			require.ErrorIs(t, s.finishStream(ctx, transport, recvErr, nil), errStopped)
+		})
+	}
+}

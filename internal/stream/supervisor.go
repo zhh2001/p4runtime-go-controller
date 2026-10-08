@@ -522,11 +522,18 @@ func (s *Supervisor) serve(ctx context.Context, cancel context.CancelFunc, strea
 
 func (s *Supervisor) finishStream(ctx context.Context, stream p4v1.P4Runtime_StreamChannelClient, recvErr <-chan error, arbitration <-chan *p4v1.MasterArbitrationUpdate) error {
 	if err := stream.CloseSend(); err != nil {
+		if ctx.Err() != nil {
+			return errStopped
+		}
 		return err
 	}
 	for {
 		select {
 		case err := <-recvErr:
+			// Recv can return cancellation before this select observes ctx.Done.
+			if ctx.Err() != nil {
+				return errStopped
+			}
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
