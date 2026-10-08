@@ -109,6 +109,7 @@ func TestBMv2_TableCLI(t *testing.T) {
 		{"ternary wildcard", "t_ternary", []string{"s.ingress_port=0&0"}, []string{"s.ingress_port=1&511"}, 10, 20, 0},
 		{"range", "t_range", []string{"s.ingress_port=1..3"}, []string{"s.ingress_port=4..6"}, 10, 10, 1},
 		{"range wildcard", "t_range", nil, []string{"s.ingress_port=4..6"}, 10, 10, 0},
+		{"range full domain", "t_range", []string{"s.ingress_port=0..511"}, []string{"s.ingress_port=4..6"}, 10, 10, 0},
 		{"optional zero", "t_optional", []string{"s.ingress_port=?0"}, []string{"s.ingress_port=?1"}, 10, 10, 1},
 		{"optional wildcard", "t_optional", nil, []string{"s.ingress_port=?1"}, 10, 10, 0},
 		{"mixed wildcard", "t_mixed", []string{"s.ingress_port=0", "s.egress_spec=0&0"}, []string{"s.ingress_port=1"}, 10, 10, 1},
@@ -135,7 +136,7 @@ func TestBMv2_TableCLI(t *testing.T) {
 			require.NotNil(t, target)
 			require.NotNil(t, keeper)
 			require.Equal(t, tc.priority, target.Priority)
-			if tc.name == "range wildcard" && len(target.Match) == 1 {
+			if (tc.name == "range wildcard" || tc.name == "range full domain") && len(target.Match) == 1 {
 				// Some PI versions read back a wildcard as an explicit full range.
 				require.Equal(t, []byte{0}, target.Match[0].GetRange().GetLow())
 				require.Equal(t, []byte{1, 255}, target.Match[0].GetRange().GetHigh())

@@ -79,15 +79,16 @@ func (b *Builder) Priority(p int32) *Builder {
 	return b
 }
 
-// IdleTimeout sets the idle timeout in nanoseconds. Zero (default) disables
-// the entry timeout.
+// IdleTimeout sets the idle timeout in nanoseconds. Zero disables the timeout.
+// Build rejects negative values, nonzero values on default entries, and
+// nonzero values on tables without idle timeout support.
 func (b *Builder) IdleTimeout(ns int64) *Builder {
 	b.timeout = ns
 	return b
 }
 
 // AsDefault marks the entry as the table's default action. When AsDefault is
-// true, all match fields and Priority are ignored — the target uses the
+// true, all match fields and Priority are ignored. The target uses the
 // action as the fallback for unmatched packets.
 func (b *Builder) AsDefault() *Builder {
 	b.isDefault = true
@@ -114,16 +115,19 @@ func Param(name string, value []byte) ActionParam {
 	return ActionParam{Name: name, Value: value}
 }
 
-// Build validates the builder against the pipeline and produces a concrete
-// p4v1.TableEntry proto.
+// Build validates the builder against the pipeline and produces an entry
+// with a direct action. Constant entries and constant default actions cannot
+// be written. Indirect tables require action profile references, which this
+// builder does not construct. Default entries must use MODIFY updates.
 func (b *Builder) Build() (*p4v1.TableEntry, error) {
 	entry, err := b.BuildKey()
 	if err != nil {
 		return nil, err
 	}
-	if b.timeout > 0 {
-		entry.IdleTimeoutNs = b.timeout
+	if err := b.validateIdleTimeout(); err != nil {
+		return nil, err
 	}
+	entry.IdleTimeoutNs = b.timeout
 	if len(b.metadata) > 0 {
 		entry.Metadata = append([]byte(nil), b.metadata...)
 	}
@@ -137,6 +141,22 @@ func (b *Builder) Build() (*p4v1.TableEntry, error) {
 	}
 	entry.Action = &p4v1.TableAction{Type: &p4v1.TableAction_Action{Action: act}}
 	return entry, nil
+}
+
+func (b *Builder) validateIdleTimeout() error {
+	if b.timeout < 0 {
+		return fmt.Errorf("tableentry.Build: negative idle timeout %d", b.timeout)
+	}
+	if b.timeout == 0 {
+		return nil
+	}
+	if b.isDefault {
+		return errors.New("tableentry.Build: default entries require zero idle timeout")
+	}
+	if b.table.Raw().GetIdleTimeoutBehavior() != p4configv1.Table_NOTIFY_CONTROL {
+		return fmt.Errorf("tableentry.Build: table %q does not support idle timeout", b.table.Name)
+	}
+	return nil
 }
 
 // BuildKey validates and builds only the fields identifying an entry:
@@ -174,7 +194,7 @@ func (b *Builder) BuildKey() (*p4v1.TableEntry, error) {
 }
 
 func (b *Builder) encodeMatches(entry *p4v1.TableEntry) error {
-	// Build match field protos in P4Info declaration order for determinism.
+	// Build match field protos in field ID order for determinism.
 	order := make([]*pipeline.MatchFieldDef, len(b.table.MatchFields))
 	copy(order, b.table.MatchFields)
 	sort.SliceStable(order, func(i, j int) bool { return order[i].ID < order[j].ID })
@@ -278,6 +298,9 @@ func encodeField(mf *pipeline.MatchFieldDef, mv MatchValue) (*p4v1.FieldMatch, e
 		if err != nil {
 			return nil, fmt.Errorf("match %q high: %w", mf.Name, err)
 		}
+		if isFullRange(low, high, int(mf.Bitwidth)) {
+			return nil, nil // don't-care
+		}
 		return &p4v1.FieldMatch{
 			FieldId: mf.ID,
 			FieldMatchType: &p4v1.FieldMatch_Range_{Range: &p4v1.FieldMatch_Range{
@@ -309,9 +332,42 @@ func (b *Builder) encodeAction() (*p4v1.Action, error) {
 	if b.pipeline == nil {
 		return nil, errors.New("tableentry.Build: pipeline required to encode action")
 	}
+	if b.isDefault {
+		if b.table.Raw().GetConstDefaultActionId() != 0 {
+			return nil, fmt.Errorf("tableentry.Build: table %q has a constant default action", b.table.Name)
+		}
+	} else if b.table.Const {
+		return nil, fmt.Errorf("tableentry.Build: cannot write an action on constant table %q", b.table.Name)
+	}
+	if b.table.Raw().GetImplementationId() != 0 {
+		return nil, fmt.Errorf("tableentry.Build: indirect table %q cannot use this direct-action builder", b.table.Name)
+	}
 	act, ok := b.pipeline.Action(b.action.name)
 	if !ok {
 		return nil, fmt.Errorf("tableentry.Build: action %q not in pipeline", b.action.name)
+	}
+	var ref *pipeline.ActionRef
+	for _, candidate := range b.table.ActionRefs {
+		if candidate.ID == act.ID {
+			ref = candidate
+			break
+		}
+	}
+	if ref == nil {
+		return nil, fmt.Errorf("tableentry.Build: action %q not on table %q", b.action.name, b.table.Name)
+	}
+	switch ref.Scope {
+	case p4configv1.ActionRef_TABLE_AND_DEFAULT:
+	case p4configv1.ActionRef_TABLE_ONLY:
+		if b.isDefault {
+			return nil, fmt.Errorf("tableentry.Build: action %q is TABLE_ONLY on table %q", b.action.name, b.table.Name)
+		}
+	case p4configv1.ActionRef_DEFAULT_ONLY:
+		if !b.isDefault {
+			return nil, fmt.Errorf("tableentry.Build: action %q is DEFAULT_ONLY on table %q", b.action.name, b.table.Name)
+		}
+	default:
+		return nil, fmt.Errorf("tableentry.Build: action %q has unsupported scope %d on table %q", b.action.name, ref.Scope, b.table.Name)
 	}
 	out := &p4v1.Action{ActionId: act.ID}
 	for _, pdef := range act.Params {
@@ -337,6 +393,26 @@ func (b *Builder) encodeAction() (*p4v1.Action, error) {
 		}
 	}
 	return out, nil
+}
+
+// isFullRange receives canonical endpoints validated against a positive width.
+func isFullRange(low, high []byte, bitwidth int) bool {
+	if !allZero(low) || len(high) != (bitwidth-1)/8+1 {
+		return false
+	}
+	first := byte(0xff)
+	if bits := bitwidth % 8; bits != 0 {
+		first = byte((1 << uint(bits)) - 1)
+	}
+	if high[0] != first {
+		return false
+	}
+	for _, value := range high[1:] {
+		if value != 0xff {
+			return false
+		}
+	}
+	return true
 }
 
 func allZero(b []byte) bool {

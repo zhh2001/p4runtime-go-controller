@@ -83,13 +83,19 @@ Explicit `VERIFY`, `VERIFY_AND_SAVE`, `COMMIT`, and `RECONCILE_AND_COMMIT` run o
 
 P4Runtime's canonical encoding uses the shortest nonempty big-endian byte string for an unsigned integer. Zero is encoded as `00`. Integer encoders normalize nil, empty, and all-zero inputs to that single byte.
 
-The table entry builder handles wildcard omission separately. `Optional(nil)`, an LPM prefix of zero, and an all-zero ternary mask omit the corresponding match field. A zero value with an explicit optional match, a nonzero LPM prefix, or a nonzero ternary mask remains in the entry.
+The table entry builder handles wildcard omission separately. `Optional(nil)`, an LPM prefix of zero, an all-zero ternary mask and a RANGE covering the field's entire domain omit the corresponding match field. A zero value with an explicit optional match, a nonzero LPM prefix or a nonzero ternary mask remains in the entry.
 
 LPM and prefix-style ternary masks count from the field's highest bit, excluding byte padding. For a 9-bit field, a full mask is `01ff`, and an 8-bit prefix mask is `01fe`. Mask helpers validate the value and mask before applying them, so masking cannot hide an input that exceeds the field width. Redundant leading zero bytes are accepted and removed from encoded values and masks.
 
-Range endpoints are normalized before comparison. Leading zero bytes do not affect their order, and the builder emits canonical low and high values.
+Range endpoints are normalized before comparison. Leading zero bytes do not affect their order, and the builder emits canonical low and high values. A range from zero through `2^bitwidth - 1` is omitted, including for fields whose width is not a multiple of eight. A narrower range, including `0..0`, remains a concrete match.
 
 `Builder.BuildKey()` constructs the table ID, match fields, priority, and default-action flag without an action, metadata, or idle timeout. Use it to identify an ordinary entry for deletion. `Build()` uses the same key validation and also requires an action. Every EXACT field is required. Tables with TERNARY, RANGE, or OPTIONAL fields require a positive priority, even when those fields are wildcarded. Other tables require zero priority. `AsDefault()` omits matches and priority from both forms. Default entries cannot be deleted.
+
+`Build()` resolves action names and aliases to their P4Info IDs, checks the table's `action_refs` and enforces `TABLE_ONLY` and `DEFAULT_ONLY` scope. It rejects action writes on constant table entries and constant default actions, even when the supplied action equals the original. A constant table may still have a mutable default action. Default entries use MODIFY updates. Indirect tables require action profile references, so they cannot use this direct-action builder. `BuildKey()` can still identify their entries for reads or direct resource requests.
+
+`IdleTimeout(0)` disables expiration. `Build()` rejects negative values, nonzero values on default entries and nonzero values on tables without `NOTIFY_CONTROL` support. `BuildKey()` continues to ignore idle timeout, action and metadata, including values that would be invalid for `Build()`.
+
+These checks follow [P4Runtime's table entry rules](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html#sec-table-entry).
 
 `internal/codec` provides these helpers:
 

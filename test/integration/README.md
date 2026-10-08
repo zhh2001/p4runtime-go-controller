@@ -49,7 +49,7 @@ The RANGE cases can be run separately with `-run '^TestBMv2_FieldWidthMasks$/ran
 
 ## CLI table operations
 
-`TestBMv2_TableCLI` runs the actual CLI against EXACT, LPM, TERNARY, RANGE, OPTIONAL, and mixed-match tables from `testdata/table_keys.p4`. It inserts two entries, modifies one, deletes it without an action, and reads back the other entry. It also checks wildcard entries, identical matches at different priorities, missing entries, and invalid keys. The LPM field is 32 bits, so this test can run on PI versions with the 9-bit LPM limitation above.
+`TestBMv2_TableCLI` runs the actual CLI against EXACT, LPM, TERNARY, RANGE, OPTIONAL, and mixed-match tables from `testdata/table_keys.p4`. It inserts two entries, modifies one, deletes it without an action, and reads back the other entry. It also checks wildcard entries, an explicit full-domain RANGE, identical matches at different priorities, missing entries, and invalid keys. The LPM field is 32 bits, so this test can run on PI versions with the 9-bit LPM limitation above.
 
 From the repository root, with a running BMv2 target:
 
@@ -66,6 +66,19 @@ go test -race -tags=integration -count=1 -run '^TestBMv2_TableCLI$' ./test/integ
 ```
 
 Set all three variables to include this test in the full suite. With none set, the CLI test is skipped. The test installs its pipeline and uses plaintext on a target with device ID 1.
+
+`TestBMv2_TableValidation` uses the same P4Info and config pair, without needing a CLI binary. The program includes action scopes, a table with idle timeout support, a constant default action, constant entries and an action profile. The test writes permitted actions, reads back default changes and checks the builder's rejection of forbidden writes. It receives an idle notification with the requested TTL and key, confirms the entry remains until explicitly deleted and verifies metadata through Read.
+
+Run it with the compiled pair above:
+
+```bash
+P4RT_KEY_P4INFO=/tmp/p4runtime-integration/table-keys/table_keys.p4info.txtpb \
+P4RT_KEY_DEVICE_CONFIG=/tmp/p4runtime-integration/table-keys/table_keys.json \
+go test -race -tags=integration -count=3 \
+  -run '^TestBMv2_TableValidation$' ./test/integration/...
+```
+
+Some PI versions omit `metadata` from idle notifications while returning it correctly through Read. The live test logs that omission and checks metadata when the notification contains it. A separate SDK test checks that a complete notification reaches the handler unchanged.
 
 ## L2 traffic and examples
 

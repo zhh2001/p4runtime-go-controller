@@ -24,6 +24,12 @@ control MyIngress(inout headers_t h, inout metadata_t m,
     action forward(bit<9> port) {
         s.egress_spec = port;
     }
+    action entry_only(bit<9> port) {
+        s.egress_spec = port;
+    }
+    action default_only(bit<9> port) {
+        s.egress_spec = port;
+    }
     table t_exact {
         key = {
             s.ingress_port : exact;
@@ -91,6 +97,54 @@ control MyIngress(inout headers_t h, inout metadata_t m,
         default_action = NoAction();
         size = 32;
     }
+    table t_scoped {
+        key = {
+            s.ingress_port : exact;
+        }
+        actions = {
+            forward;
+            @tableonly entry_only;
+            @defaultonly default_only;
+        }
+        default_action = default_only(1);
+        support_timeout = true;
+        size = 32;
+    }
+    table t_const_default {
+        key = {
+            s.ingress_port : exact;
+        }
+        actions = {
+            forward;
+            NoAction;
+        }
+        const default_action = forward(1);
+        size = 32;
+    }
+    table t_constant {
+        key = {
+            s.ingress_port : exact;
+        }
+        actions = {
+            forward;
+            NoAction;
+        }
+        default_action = forward(1);
+        const entries = {
+            1 : forward(2);
+        }
+    }
+    action_profile(32) profile;
+    table t_indirect {
+        key = {
+            s.ingress_port : exact;
+        }
+        actions = {
+            forward;
+        }
+        implementation = profile;
+        size = 32;
+    }
     apply {
         t_exact.apply();
         t_lpm.apply();
@@ -98,6 +152,10 @@ control MyIngress(inout headers_t h, inout metadata_t m,
         t_range.apply();
         t_optional.apply();
         t_mixed.apply();
+        t_scoped.apply();
+        t_const_default.apply();
+        t_constant.apply();
+        t_indirect.apply();
     }
 }
 

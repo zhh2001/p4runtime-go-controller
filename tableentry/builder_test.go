@@ -313,7 +313,9 @@ func TestBuilder_DefaultAction(t *testing.T) {
 }
 
 func TestBuilder_IdleTimeoutAndMetadata(t *testing.T) {
-	p := fixturePipeline(t)
+	p := validationPipeline(t, func(table *p4configv1.Table) {
+		table.IdleTimeoutBehavior = p4configv1.Table_NOTIFY_CONTROL
+	})
 	entry, err := tableentry.NewBuilder(p, "ingress.t_exact").
 		Match("hdr.eth.dst", tableentry.Exact(codec.MustMAC("00:11:22:33:44:55"))).
 		Action("forward", tableentry.Param("port", codec.MustEncodeUint(1, 9))).

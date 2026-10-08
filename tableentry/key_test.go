@@ -16,7 +16,12 @@ import (
 )
 
 func TestBuilder_BuildKey(t *testing.T) {
-	p := fixturePipeline(t)
+	info := proto.Clone(fixturePipeline(t).Info()).(*p4configv1.P4Info)
+	for _, table := range info.Tables {
+		table.IdleTimeoutBehavior = p4configv1.Table_NOTIFY_CONTROL
+	}
+	p, err := pipeline.New(info, nil)
+	require.NoError(t, err)
 	for _, tc := range []struct {
 		name     string
 		table    string
@@ -65,7 +70,7 @@ func TestBuilder_BuildKeyIgnoresNonKeyFields(t *testing.T) {
 	require.True(t, proto.Equal(&p4v1.TableEntry{TableId: 1, Match: []*p4v1.FieldMatch{{
 		FieldId: 1, FieldMatchType: &p4v1.FieldMatch_Exact_{Exact: &p4v1.FieldMatch_Exact{Value: []byte{1}}},
 	}}}, key))
-	_, err = b.Build()
+	_, err = b.IdleTimeout(0).Build()
 	require.Error(t, err, "Build must still validate the action")
 	key.Match[0].GetExact().Value[0] = 2
 	key.Match[0].FieldId = 9

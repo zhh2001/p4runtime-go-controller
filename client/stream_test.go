@@ -9,6 +9,7 @@ import (
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
 	"github.com/zhh2001/p4runtime-go-controller/internal/testutil"
@@ -73,6 +74,37 @@ func TestStream_AllDispatchers(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	assert.Equal(t, int64(1), atomic.LoadInt64(&pktCount))
 	assert.Equal(t, int64(3), atomic.LoadInt64(&anyCount))
+}
+
+func TestStream_IdleTimeoutPayload(t *testing.T) {
+	h := testutil.StartServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	c, err := dialViaHarness(ctx, h)
+	require.NoError(t, err)
+	defer c.Close()
+	require.NoError(t, c.BecomePrimary(ctx))
+	received := make(chan *p4v1.IdleTimeoutNotification, 1)
+	stop := c.OnIdleTimeout(func(_ context.Context, msg *p4v1.IdleTimeoutNotification) {
+		received <- msg
+	})
+	defer stop()
+	want := &p4v1.IdleTimeoutNotification{Timestamp: 123, TableEntry: []*p4v1.TableEntry{{
+		TableId: 0x02000001, Priority: 10, ControllerMetadata: 42,
+		Metadata: []byte("idle entry"), IdleTimeoutNs: 100_000_000,
+		Match: []*p4v1.FieldMatch{{FieldId: 1, FieldMatchType: &p4v1.FieldMatch_Exact_{
+			Exact: &p4v1.FieldMatch_Exact{Value: []byte{3}},
+		}}},
+	}}}
+	require.NoError(t, h.PushStreamMessage(&p4v1.StreamMessageResponse{
+		Update: &p4v1.StreamMessageResponse_IdleTimeoutNotification{IdleTimeoutNotification: want},
+	}))
+	select {
+	case got := <-received:
+		require.True(t, proto.Equal(want, got), "the SDK must preserve the complete notification")
+	case <-ctx.Done():
+		t.Fatal("idle timeout notification was not delivered")
+	}
 }
 
 func TestStream_SendAckAndNilGuards(t *testing.T) {
