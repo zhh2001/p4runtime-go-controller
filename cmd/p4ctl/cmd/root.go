@@ -4,13 +4,11 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-// Version is set by main and printed by the --version flag.
+// Version is set by main and printed by the version command.
 var Version = "dev"
 
 // Global flags shared by every subcommand.
@@ -25,6 +23,7 @@ type globalFlags struct {
 	TLSCert       string
 	TLSKey        string
 	ConfigPath    string
+	ConfigFile    string
 	Output        string
 }
 
@@ -51,43 +50,20 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&g.TLSServerName, "tls-server-name", "", "TLS server name to verify (default target hostname)")
 	rootCmd.PersistentFlags().StringVar(&g.TLSCert, "tls-cert", "", "PEM client certificate for mutual TLS")
 	rootCmd.PersistentFlags().StringVar(&g.TLSKey, "tls-key", "", "PEM client private key for mutual TLS")
-	rootCmd.PersistentFlags().StringVar(&g.ConfigPath, "config", "", "path to config file (default $HOME/.p4ctl.yaml)")
+	rootCmd.PersistentFlags().StringVar(&g.ConfigFile, "config-file", "", "path to CLI config file (default $HOME/.p4ctl.yaml)")
+	rootCmd.PersistentFlags().StringVar(&g.ConfigPath, "config", "", "alias for --config-file (except pipeline set)")
 	rootCmd.PersistentFlags().StringVar(&g.Output, "output", "table", "output format: table|json|yaml")
 
 	rootCmd.AddCommand(connectCmd, pipelineCmd, tableCmd, packetCmd, counterCmd, versionCmd)
 }
 
 func initConfig() error {
-	v := viper.New()
-	v.SetEnvPrefix("P4CTL")
-	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_", ".", "_"))
-	v.AutomaticEnv()
-
-	if g.ConfigPath != "" {
-		v.SetConfigFile(g.ConfigPath)
-	} else {
-		home, err := os.UserHomeDir()
-		if err == nil {
-			v.AddConfigPath(home)
-			v.SetConfigName(".p4ctl")
-		}
+	home, _ := os.UserHomeDir()
+	flags, err := loadGlobalFlags(rootCmd.PersistentFlags(), home)
+	if err != nil {
+		return err
 	}
-	if err := v.ReadInConfig(); err == nil {
-		// A file was found; let it override defaults we have not set
-		// from a command-line flag.
-		if !rootCmd.PersistentFlags().Changed("addr") && v.IsSet("addr") {
-			g.Addr = v.GetString("addr")
-		}
-		if !rootCmd.PersistentFlags().Changed("device-id") && v.IsSet("device-id") {
-			g.DeviceID = v.GetUint64("device-id")
-		}
-		if !rootCmd.PersistentFlags().Changed("election-id") && v.IsSet("election-id") {
-			g.Election = v.GetUint64("election-id")
-		}
-		if !rootCmd.PersistentFlags().Changed("role") && v.IsSet("role") {
-			g.Role = v.GetString("role")
-		}
-	}
+	g = flags
 	return nil
 }
 

@@ -22,11 +22,28 @@ Every subcommand honors these persistent flags:
 --tls-server-name string  TLS server name to verify (default target hostname)
 --tls-cert string        PEM client certificate for mutual TLS
 --tls-key string         PEM client private key for mutual TLS
---config string          path to config file (default $HOME/.p4ctl.yaml)
+--config-file string     CLI settings file (default $HOME/.p4ctl.yaml)
+--config string          legacy alias, except pipeline set (device config)
 --output string          output format: table|json|yaml (default "table")
 ```
 
-Env-var overrides: `P4CTL_ADDR`, `P4CTL_DEVICE_ID`, `P4CTL_ELECTION_ID`, `P4CTL_ROLE`.
+Settings use command-line flags first, then nonempty environment variables, then the configuration file, then defaults. An explicitly supplied flag, including `--insecure=false` or `--role=""`, overrides other sources. Empty environment variables are ignored.
+
+| Setting           | Environment variable    |
+| ----------------- | ----------------------- |
+| `addr`            | `P4CTL_ADDR`            |
+| `device-id`       | `P4CTL_DEVICE_ID`       |
+| `election-id`     | `P4CTL_ELECTION_ID`     |
+| `role`            | `P4CTL_ROLE`            |
+| `insecure`        | `P4CTL_INSECURE`        |
+| `tls-ca`          | `P4CTL_TLS_CA`          |
+| `tls-server-name` | `P4CTL_TLS_SERVER_NAME` |
+| `tls-cert`        | `P4CTL_TLS_CERT`        |
+| `tls-key`         | `P4CTL_TLS_KEY`         |
+| `output`          | `P4CTL_OUTPUT`          |
+| CLI settings file | `P4CTL_CONFIG_FILE`     |
+
+Environment settings work without a configuration file. Invalid booleans, negative or fractional IDs, IDs above `uint64`, and unsupported output formats return an error before connecting.
 
 ## TLS
 
@@ -133,13 +150,51 @@ p4ctl counter read --p4info ./examples/testdata/l2.p4info.txt \
 
 ## Configuration file
 
-`p4ctl` looks for `$HOME/.p4ctl.yaml` by default. Example:
+`p4ctl` looks for `$HOME/.p4ctl.yaml` by default. A missing default file is optional. An unreadable or malformed file returns an error. Select another file with `--config-file` or `P4CTL_CONFIG_FILE`. An explicit flag overrides the environment path, and an explicitly selected file must exist.
+
+The legacy global `--config` still selects CLI settings for commands other than `pipeline set`. Supply only one global settings flag. For `pipeline set`, `--config` always refers to the compiled device configuration, so use `--config-file` for CLI settings:
+
+```sh
+p4ctl --config-file ./controller.yaml pipeline set \
+    --p4info ./examples/testdata/l2.p4info.txt \
+    --config ./examples/testdata/l2.bmv2.json
+```
+
+YAML and JSON settings files accept the same keys as the global flags. Example with mutual TLS:
 
 ```yaml
 addr: switch01.lab.internal:9559
 device-id: 1
 election-id: 1
 role: ""
+insecure: false
+tls-ca: ./ca.pem
+tls-server-name: switch01.lab.internal
+tls-cert: ./controller.pem
+tls-key: ./controller-key.pem
+output: json
 ```
 
-The file supplies `addr`, `device-id`, `election-id`, and `role` when their flags have not been set on the command line. Configure TLS using the command-line flags above.
+Device and election IDs retain their full 64-bit precision in both formats. Relative certificate paths are resolved from the current working directory.
+
+## Output formats
+
+The default `--output=table` keeps the human-readable text. Use `--output=json` or `--output=yaml` for these commands:
+
+| Command        | Output                                                              |
+| -------------- | ------------------------------------------------------------------- |
+| `connect`      | Object with `device_id`, `election_id`, `state`, and `primary`      |
+| `pipeline set` | Object with the successful `action` and ordered `attempted` actions |
+| `pipeline get` | Full P4Info object                                                  |
+| `table read`   | Array of TableEntry objects                                         |
+| `counter read` | Array of objects with `name`, `id`, `index`, `packets`, and `bytes` |
+
+Empty read results are `[]`. P4Info and TableEntry use the [official protobuf JSON mapping](https://protobuf.dev/programming-guides/json/), including camelCase field names, base64 bytes, and strings for 64-bit integers. YAML preserves the same values and types. Counter indices and counts, and the connection's device ID, are also strings to preserve precision. The election ID uses `high:low` notation.
+
+```sh
+p4ctl --output=json pipeline get
+p4ctl --output=yaml counter read \
+    --p4info ./examples/testdata/l2.p4info.txt --counter MyIngress.pkt_counter --index 1
+```
+
+Diagnostics go to stderr, leaving structured stdout ready for parsing. Packet sniffing, version, and help keep their text output. Commands that produce no result remain silent.

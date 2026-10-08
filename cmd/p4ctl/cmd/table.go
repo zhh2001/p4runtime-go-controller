@@ -11,6 +11,7 @@ import (
 
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
 	"github.com/zhh2001/p4runtime-go-controller/internal/codec"
@@ -75,6 +76,13 @@ var tableReadCmd = &cobra.Command{
 		entries, err := c.ReadTableEntries(ctx, td.ID)
 		if err != nil {
 			return err
+		}
+		if structuredOutput() {
+			messages := make([]proto.Message, len(entries))
+			for i, entry := range entries {
+				messages[i] = entry
+			}
+			return writeStructuredOutput(cmd, messages)
 		}
 		for _, e := range entries {
 			fmt.Fprintf(cmd.OutOrStdout(), "%s id=%d priority=%d match=%d action=%s\n",

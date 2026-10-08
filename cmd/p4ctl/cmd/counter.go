@@ -50,12 +50,27 @@ var counterReadCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if structuredOutput() {
+			output := make([]counterOutput, len(entries))
+			for i, entry := range entries {
+				output[i] = counterOutput{entry.Name, entry.ID, entry.Index, entry.Packets, entry.Bytes}
+			}
+			return writeStructuredOutput(cmd, output)
+		}
 		for _, e := range entries {
 			fmt.Fprintf(cmd.OutOrStdout(), "%s[%d]: packets=%d bytes=%d\n",
 				e.Name, e.Index, e.Packets, e.Bytes)
 		}
 		return nil
 	},
+}
+
+type counterOutput struct {
+	Name    string `json:"name"`
+	ID      uint32 `json:"id"`
+	Index   int64  `json:"index,string"`
+	Packets int64  `json:"packets,string"`
+	Bytes   int64  `json:"bytes,string"`
 }
 
 func init() {

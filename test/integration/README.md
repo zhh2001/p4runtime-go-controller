@@ -12,7 +12,7 @@ In another terminal, run `make e2e` or `./scripts/test-bmv2.sh`. The test script
 
 For custom ports, start with `./scripts/run-bmv2.sh -p 10559 -t 10090` and use `P4RT_TARGET=127.0.0.1:10559 make e2e`. To reuse L2 artifacts, set `P4RT_P4INFO` and `P4RT_DEVICE_CONFIG` together. These tests expect the bundled L2 program. With only one path set, the test script returns an error. Extra Go test flags can be passed directly, for example `./scripts/test-bmv2.sh -v -run '^TestBMv2_PacketCPUPort$'`.
 
-Enable masks, table CLI, raw Ethernet, examples and the fresh-target test with the settings below.
+Enable masks, CLI, raw Ethernet, examples and the fresh-target test with the settings below.
 
 The 9-bit LPM, TERNARY, and RANGE tests use `testdata/masks.p4`. From the repository root, compile its P4Info and device configuration together:
 
@@ -46,6 +46,21 @@ Do not set `P4RT_TEST_FRESH_TARGET` when running the full suite. Other tests ins
 Some PI versions check LPM trailing zeros against the padded byte width. They reject these 9-bit LPM cases with `Invalid LPM value, incorrect number of trailing zeros`. These cases require PI to use the field width for that check. The TERNARY cases can be run separately with `-run '^TestBMv2_FieldWidthMasks$/ternary'`.
 
 The RANGE cases can be run separately with `-run '^TestBMv2_FieldWidthMasks$/range'`.
+
+## CLI configuration and output
+
+`TestBMv2_CLIConfig` runs the actual CLI with settings from a file, environment variables and flags. It checks their priority, the legacy settings flag, default text, JSON and YAML output, and `--config-file` alongside the device `--config` during pipeline installation. It reads back P4Info, a forwarding entry and an indirect counter through both formats.
+
+Build the CLI and run it against the bundled L2 target:
+
+```bash
+mkdir -p /tmp/p4runtime-integration
+go build -o /tmp/p4runtime-integration/p4ctl ./cmd/p4ctl
+P4RT_CLI_BIN=/tmp/p4runtime-integration/p4ctl \
+./scripts/test-bmv2.sh -count=3 -v -run '^TestBMv2_CLIConfig$'
+```
+
+This test uses `P4RT_CLI_BIN`, `P4RT_P4INFO` and `P4RT_DEVICE_CONFIG`. The script supplies the pipeline pair when both paths are unset. The target must use device ID 1 and plaintext. The test installs its pipeline. TLS configuration, empty result arrays and full-width integer values are covered by the CLI's subprocess tests against a controlled server.
 
 ## CLI table operations
 

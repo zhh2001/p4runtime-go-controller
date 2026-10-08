@@ -57,6 +57,16 @@ var pipelineSetCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if structuredOutput() {
+			attempted := make([]string, len(res.Attempted))
+			for i, action := range res.Attempted {
+				attempted[i] = action.String()
+			}
+			return writeStructuredOutput(cmd, struct {
+				Action    string   `json:"action"`
+				Attempted []string `json:"attempted"`
+			}{res.Action.String(), attempted})
+		}
 		fmt.Fprintf(cmd.OutOrStdout(), "pipeline installed via %s (attempted %v)\n", res.Action, res.Attempted)
 		return nil
 	},
@@ -76,6 +86,9 @@ var pipelineGetCmd = &cobra.Command{
 		p, err := c.GetPipeline(ctx)
 		if err != nil {
 			return err
+		}
+		if structuredOutput() {
+			return writeStructuredOutput(cmd, p.Info())
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "tables=%d actions=%d counters=%d meters=%d registers=%d digests=%d\n",
 			len(p.Info().GetTables()),

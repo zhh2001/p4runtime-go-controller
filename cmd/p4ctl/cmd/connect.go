@@ -19,6 +19,14 @@ var connectCmd = &cobra.Command{
 			return err
 		}
 		defer c.Close()
+		if structuredOutput() {
+			return writeStructuredOutput(cmd, struct {
+				DeviceID uint64 `json:"device_id,string"`
+				Election string `json:"election_id"`
+				State    string `json:"state"`
+				Primary  bool   `json:"primary"`
+			}{c.DeviceID(), c.ElectionID().String(), c.State().String(), c.IsPrimary()})
+		}
 		fmt.Fprintf(cmd.OutOrStdout(), "connected: device_id=%d election_id=%s state=%s primary=%t\n",
 			c.DeviceID(), c.ElectionID(), c.State(), c.IsPrimary())
 		return nil
