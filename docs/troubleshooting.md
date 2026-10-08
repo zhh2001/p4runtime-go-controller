@@ -91,7 +91,7 @@ Pin the image to an arm64 build:
 
 ```sh
 docker pull p4lang/behavioral-model:latest-arm64
-./scripts/run-bmv2.sh -i p4lang/behavioral-model:latest-arm64
+./scripts/run-bmv2.sh --docker -i p4lang/behavioral-model:latest-arm64
 ```
 
 ## Running integration tests
@@ -102,3 +102,5 @@ make e2e
 ```
 
 The integration suite uses the `integration` build tag; it is excluded from the default `make test` run.
+
+The launcher runs a native target in the foreground by default. Keep it running in another terminal, or use `--docker` for a detached container. It compiles the L2 artifacts and enables CPU port 255. `make e2e` generates its own matching L2 pair and passes both paths to the tests. See [the integration guide](../test/integration/README.md) for optional suites and existing PI version limits.

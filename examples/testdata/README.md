@@ -26,11 +26,10 @@ PacketIn metadata contains `ingress_port` and `_pad`. PacketOut metadata contain
 
 ## Native BMv2
 
-Start a target with device ID 1 and CPU port 255:
+Start a local target with device ID 1 and CPU port 255. The launcher compiles both artifacts first:
 
 ```sh
-simple_switch_grpc --no-p4 --device-id 1 \
-    -- --grpc-server-addr 127.0.0.1:9559 --cpu-port 255
+./scripts/run-bmv2.sh
 ```
 
-For traffic, bind host-facing interfaces before `--`, for example `-i 1@veth1 -i 2@veth2`. These interfaces must already exist, and BMv2 needs permission to open raw sockets on them. Examples 02 and 03 use port 1 by default in their documented commands.
+For traffic, bind existing host-facing interfaces with `--interface 1@veth1 --interface 2@veth2`. BMv2 needs permission to open raw sockets on them. Examples 02 and 03 use port 1 by default in their documented commands. Docker mode provides a control plane target through `--docker`; host interface bindings use native mode. See [the script guide](../../scripts/README.md).

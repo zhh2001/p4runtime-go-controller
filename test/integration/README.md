@@ -2,6 +2,18 @@
 
 Use a BMv2 P4Runtime target with device ID 1. Tests install their pipeline on the target selected by `P4RT_TARGET`, which defaults to `127.0.0.1:9559`.
 
+From the repository root, start the target in one terminal:
+
+```bash
+./scripts/run-bmv2.sh
+```
+
+In another terminal, run `make e2e` or `./scripts/test-bmv2.sh`. The test script compiles a fresh L2 pair into `build/integration/l2`, exports both pipeline paths and runs with race detection. L2 pipeline, arbitration and CPU port tests run without extra settings. The CPU test sends a frame back through port 255 and verifies the PacketIn payload and metadata, so it needs no network interfaces.
+
+For custom ports, start with `./scripts/run-bmv2.sh -p 10559 -t 10090` and use `P4RT_TARGET=127.0.0.1:10559 make e2e`. To reuse L2 artifacts, set `P4RT_P4INFO` and `P4RT_DEVICE_CONFIG` together. These tests expect the bundled L2 program. With only one path set, the test script returns an error. Extra Go test flags can be passed directly, for example `./scripts/test-bmv2.sh -v -run '^TestBMv2_PacketCPUPort$'`.
+
+Enable masks, table CLI, raw Ethernet, examples and the fresh-target test with the settings below.
+
 The 9-bit LPM, TERNARY, and RANGE tests use `testdata/masks.p4`. From the repository root, compile its P4Info and device configuration together:
 
 ```bash

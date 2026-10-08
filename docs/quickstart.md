@@ -1,6 +1,6 @@
 # Quickstart
 
-This guide walks through installing the SDK, bringing up a local BMv2 target, and writing your first table entry — start to finish.
+This guide covers installing the SDK, starting a local BMv2 target and writing your first table entry.
 
 ## 1. Install
 
@@ -16,15 +16,17 @@ go install github.com/zhh2001/p4runtime-go-controller/cmd/p4ctl@latest
 
 ## 2. Bring up BMv2
 
-Compile the L2 P4Info and device config together, then start a native BMv2 target with device ID 1 and CPU port 255:
+Start the local BMv2 target. The script compiles a matching L2 P4Info and device config, then uses device ID 1 and CPU port 255:
 
 ```sh
-./scripts/compile-l2.sh
-simple_switch_grpc --no-p4 --device-id 1 \
-    -- --grpc-server-addr 127.0.0.1:9559 --cpu-port 255
+./scripts/run-bmv2.sh
 ```
 
 Keep the target running in another terminal. This command supports control plane operations. To send and receive traffic, bind host-facing interfaces as described in the [L2 fixture guide](../examples/testdata/README.md).
+
+Use `./scripts/run-bmv2.sh --docker` for a detached Docker target. Docker mode still requires local p4c. See [the script guide](../scripts/README.md) for custom ports and container names.
+
+With the target running, `make e2e` compiles its own matching L2 pair and runs the integration tests with race detection. L2 pipeline, arbitration and CPU Packet I/O tests run automatically. Other suites require the optional settings described in [the integration guide](../test/integration/README.md).
 
 ## 3. Your first program
 

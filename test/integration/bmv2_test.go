@@ -41,9 +41,8 @@ func p4infoPath() string {
 	return "../../examples/testdata/l2.p4info.txt"
 }
 
-// deviceConfigPath is optional — set P4RT_DEVICE_CONFIG to a locally built
-// bmv2.json. When unset the test only exercises VERIFY_AND_COMMIT and is
-// skipped automatically if the target rejects an empty config.
+// deviceConfigPath is set by scripts/test-bmv2.sh to a compiled BMv2 config.
+// Direct go test invocations can leave it unset to skip L2 pipeline tests.
 func deviceConfigPath() string {
 	return os.Getenv("P4RT_DEVICE_CONFIG")
 }

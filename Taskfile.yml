@@ -50,4 +50,4 @@ tasks:
   e2e:
     desc: integration tests (requires BMv2)
     cmds:
-      - go test -tags=integration -count=1 ./test/integration/...
+      - ./scripts/test-bmv2.sh

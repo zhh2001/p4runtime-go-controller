@@ -54,7 +54,7 @@ vuln:
 
 .PHONY: e2e
 e2e:
-	$(GO) test -tags=integration -count=1 ./test/integration/...
+	GO="$(GO)" ./scripts/test-bmv2.sh
 
 .PHONY: docs
 docs:

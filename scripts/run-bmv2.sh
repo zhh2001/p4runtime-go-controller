@@ -1,65 +1,128 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# run-bmv2.sh — launch BMv2 (simple_switch_grpc) in a Docker container, bound
-# to the local testdata fixtures. Useful for running the example programs and
-# the integration test suite against a P4Runtime target.
-#
-# Usage:
-#   scripts/run-bmv2.sh [-p 9559] [-i p4lang/p4c:stable]
-
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BACKEND="native"
 PORT="9559"
+THRIFT_PORT="9090"
 IMAGE="p4lang/behavioral-model:latest"
 NAME="p4runtime-go-controller-bmv2"
-TESTDATA="$(cd "$(dirname "$0")/.." && pwd)/examples/testdata"
+OUTPUT="${ROOT}/examples/testdata"
+SWITCH="${SIMPLE_SWITCH_GRPC:-simple_switch_grpc}"
+INTERFACES=()
 
-while getopts "p:i:h" opt; do
-  case "${opt}" in
-    p) PORT="${OPTARG}" ;;
-    i) IMAGE="${OPTARG}" ;;
-    h)
-      echo "Usage: $(basename "$0") [-p port] [-i image]"
-      exit 0
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [--native | --docker] [options]
+  -p, --port PORT          gRPC port (default 9559)
+  -t, --thrift-port PORT   Thrift port (default 9090)
+  -i, --image IMAGE        Docker image, selects Docker mode
+  -n, --name NAME          Docker container name
+      --interface PORT@IFACE  Bind a native data port, repeatable
+      --output DIRECTORY  Directory for compiled L2 artifacts
+  -h, --help              Show this help
+
+Device ID is 1 and CPU port is 255 for the bundled L2 program.
+Native mode is the default and runs in the foreground.
+Docker mode starts a detached container.
+EOF
+}
+
+fail() {
+  echo "$*" >&2
+  exit 2
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --native) BACKEND="native"; shift ;;
+    --docker) BACKEND="docker"; shift ;;
+    -p?*|-t?*|-i?*|-n?*) set -- "${1:0:2}" "${1:2}" "${@:2}" ;;
+    -p|--port|-t|--thrift-port|-i|--image|-n|--name|--output|--interface)
+      [[ $# -ge 2 && -n "$2" ]] || fail "Missing value for $1"
+      case "$1" in
+        -p|--port) PORT="$2" ;;
+        -t|--thrift-port) THRIFT_PORT="$2" ;;
+        -i|--image) IMAGE="$2"; BACKEND="docker" ;;
+        -n|--name) NAME="$2" ;;
+        --output) OUTPUT="$2" ;;
+        --interface) INTERFACES+=("$2") ;;
+      esac
+      shift 2
       ;;
-    *)
-      echo "Unknown option"
-      exit 2
-      ;;
+    -h|--help) usage; exit 0 ;;
+    *) fail "Unknown argument: $1" ;;
   esac
 done
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "docker is required to run this script" >&2
-  exit 1
+valid_port() {
+  [[ "$1" =~ ^[0-9]{1,5}$ ]] && (( 10#$1 >= 1 && 10#$1 <= 65535 ))
+}
+valid_port "${PORT}" || fail "Invalid gRPC port: ${PORT}"
+valid_port "${THRIFT_PORT}" || fail "Invalid Thrift port: ${THRIFT_PORT}"
+PORT="$((10#${PORT}))"
+THRIFT_PORT="$((10#${THRIFT_PORT}))"
+[[ "${PORT}" != "${THRIFT_PORT}" ]] || fail "gRPC and Thrift ports must differ"
+
+for BINDING in "${INTERFACES[@]}"; do
+  [[ "${BINDING}" =~ ^([0-9]{1,3})@([a-zA-Z0-9_.:-]+)$ ]] || fail "Invalid interface binding: ${BINDING}"
+  DATA_PORT="$((10#${BASH_REMATCH[1]}))"
+  (( DATA_PORT < 511 && DATA_PORT != 255 )) || fail "Data ports must be 0..510 except CPU port 255"
+done
+
+if [[ "${BACKEND}" == "native" ]]; then
+  command -v "${SWITCH}" >/dev/null 2>&1 || fail "${SWITCH} is required for native mode"
+else
+  [[ ${#INTERFACES[@]} -eq 0 ]] || fail "Use --native to bind host interfaces"
+  [[ "${NAME}" =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]] || fail "Invalid Docker container name: ${NAME}"
+  [[ "${IMAGE}" != -* ]] || fail "Invalid Docker image: ${IMAGE}"
+  command -v docker >/dev/null 2>&1 || fail "docker is required for Docker mode"
+  docker info >/dev/null 2>&1 || fail "Docker daemon is unavailable or access is denied"
+  if docker container inspect "${NAME}" >/dev/null 2>&1; then
+    fail "Container ${NAME} already exists. Choose another --name or stop and remove it first"
+  fi
 fi
 
-if [[ ! -f "${TESTDATA}/l2.bmv2.json" ]]; then
-  cat >&2 <<EOF
-Expected compiled device config at ${TESTDATA}/l2.bmv2.json.
-Run p4c locally to produce it, for example:
-  p4c --target bmv2 --arch v1model \\
-      --p4runtime-files ${TESTDATA}/l2.p4info.txt \\
-      -o ${TESTDATA} \\
-      ${TESTDATA}/l2.p4
-EOF
-  exit 1
+"${ROOT}/scripts/compile-l2.sh" "${OUTPUT}"
+OUTPUT="$(cd "${OUTPUT}" && pwd)"
+SWITCH_ARGS=(--no-p4 --device-id 1 --thrift-port "${THRIFT_PORT}" --log-console)
+for BINDING in "${INTERFACES[@]}"; do
+  SWITCH_ARGS+=(-i "${BINDING}")
+done
+
+echo "Starting BMv2 with device ID 1 and CPU port 255"
+echo "Integration tests: P4RT_TARGET=127.0.0.1:${PORT} make e2e"
+if [[ "${BACKEND}" == "native" ]]; then
+  SWITCH_ARGS+=(--notifications-addr "ipc:///tmp/p4runtime-bmv2-${PORT}-notifications.ipc")
+  exec "${SWITCH}" "${SWITCH_ARGS[@]}" -- --grpc-server-addr "127.0.0.1:${PORT}" --cpu-port 255
 fi
 
-echo "starting BMv2 container '${NAME}' on port ${PORT} using image ${IMAGE}"
-docker rm -f "${NAME}" >/dev/null 2>&1 || true
+CONTAINER_ID="$(docker create --name "${NAME}" \
+  -p "127.0.0.1:${PORT}:${PORT}" \
+  -v "${OUTPUT}:/testdata:ro" \
+  --entrypoint simple_switch_grpc \
+  "${IMAGE}" "${SWITCH_ARGS[@]}" -- --grpc-server-addr "0.0.0.0:${PORT}" --cpu-port 255)"
 
-docker run -d \
-  --name "${NAME}" \
-  -p "${PORT}:${PORT}" \
-  -v "${TESTDATA}:/testdata:ro" \
-  "${IMAGE}" \
-  simple_switch_grpc \
-    --no-p4 \
-    --log-console \
-    -- \
-    --grpc-server-addr "0.0.0.0:${PORT}" >/dev/null
-
-echo "BMv2 running. Attach with:"
-echo "  docker logs -f ${NAME}"
-echo "Stop with:"
-echo "  docker rm -f ${NAME}"
+trap 'docker rm -f "${CONTAINER_ID}" >/dev/null 2>&1 || true' EXIT
+if ! docker start "${CONTAINER_ID}" >/dev/null; then
+  docker logs "${CONTAINER_ID}" >&2
+  exit 1
+fi
+for ((ATTEMPT=0; ATTEMPT<100; ATTEMPT++)); do
+  if [[ "$(docker container inspect --format '{{.State.Running}}' "${CONTAINER_ID}")" != "true" ]]; then
+    docker logs "${CONTAINER_ID}" >&2
+    echo "BMv2 container exited during startup" >&2
+    exit 1
+  fi
+  if (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") 2>/dev/null; then
+    trap - EXIT
+    echo "Container: ${NAME}"
+    echo "Logs: docker logs -f ${NAME}"
+    echo "Stop: docker stop ${NAME} && docker rm ${NAME}"
+    exit 0
+  fi
+  sleep 0.1
+done
+docker logs "${CONTAINER_ID}" >&2
+echo "BMv2 did not listen on port ${PORT} within 10 seconds" >&2
+exit 1
