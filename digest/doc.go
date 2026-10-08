@@ -1,3 +1,6 @@
-// Package digest subscribes to P4Runtime digest notifications, decodes them
-// against the active P4Info, and acknowledges them back to the target.
+// Package digest subscribes to P4Runtime digest notifications by P4Info name
+// or alias and acknowledges batches with IDs declared in that P4Info.
+// Subscribe reports invalid names and handlers. OnDigest retains its
+// cancellation-only API and registers nothing for invalid subscriptions.
+// Callbacks receive the raw DigestList and decode its P4Data themselves.
 package digest

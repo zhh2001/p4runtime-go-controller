@@ -190,6 +190,23 @@ func TestNew_RejectsNil(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestDigestByID(t *testing.T) {
+	p, err := pipeline.New(sampleInfo(), nil)
+	require.NoError(t, err)
+	byName, ok := p.Digest("ingress.digest")
+	require.True(t, ok)
+	byID, ok := p.DigestByID(600)
+	require.True(t, ok)
+	assert.Same(t, byName, byID)
+	byID, ok = p.DigestByID(999)
+	assert.False(t, ok)
+	assert.Nil(t, byID)
+	var empty *pipeline.Pipeline
+	byID, ok = empty.DigestByID(600)
+	assert.False(t, ok)
+	assert.Nil(t, byID)
+}
+
 func TestLoad_Binary(t *testing.T) {
 	info := sampleInfo()
 	blob, err := proto.Marshal(info)

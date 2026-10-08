@@ -80,6 +80,37 @@ go test -race -tags=integration -count=3 \
 
 Some PI versions omit `metadata` from idle notifications while returning it correctly through Read. The live test logs that omission and checks metadata when the notification contains it. A separate SDK test checks that a complete notification reaches the handler unchanged.
 
+## Digest subscriptions
+
+On Linux, `TestBMv2_DigestSubscriptions` uses `testdata/digests.p4` and real Ethernet input. It checks named subscriptions, explicit subscription to all digests, invalid names, decoded test data, duplicate suppression before ACK and delivery after ACK. It also cancels a named subscription before acknowledging its received batch and checks that the canceled callback receives no later batches.
+
+Compile the digest program from the repository root:
+
+```bash
+mkdir -p /tmp/p4runtime-integration/digests
+p4c-bm2-ss --arch v1model \
+  --p4runtime-files /tmp/p4runtime-integration/digests/digests.p4info.txtpb \
+  -o /tmp/p4runtime-integration/digests/digests.json \
+  test/integration/testdata/digests.p4
+```
+
+Use a target with data ports 1 and 2 bound to two veth pairs, as described below. Set `P4RT_DIGEST_P4INFO` and `P4RT_DIGEST_DEVICE_CONFIG` to the compiled paths, and `P4RT_HOST_IFACE1` and `P4RT_HOST_IFACE2` to the host ends. Run the integration test binary with raw socket permission:
+
+```bash
+go test -c -race -tags=integration \
+  -o /tmp/p4runtime-integration/integration.test ./test/integration
+sudo env P4RT_TARGET=127.0.0.1:9559 \
+  P4RT_DIGEST_P4INFO=/tmp/p4runtime-integration/digests/digests.p4info.txtpb \
+  P4RT_DIGEST_DEVICE_CONFIG=/tmp/p4runtime-integration/digests/digests.json \
+  P4RT_HOST_IFACE1=host1 P4RT_HOST_IFACE2=host2 \
+  /tmp/p4runtime-integration/integration.test \
+  -test.v -test.count=3 -test.run '^TestBMv2_DigestSubscriptions$'
+```
+
+With neither digest pipeline path set, the test is skipped. With one path missing, it fails. Both host interface variables and raw socket permission are required to run the test. The test installs its digest pipeline on the selected target.
+
+The test observes redelivery after each ACK before sending the next ACK. Some PI versions store an asynchronous ACK task's request by reference, allowing a later stream request to overwrite it. SDK tests verify consecutive ACKs against a server that records each request. The live test does not establish that an affected PI version handles consecutive ACKs correctly.
+
 ## L2 traffic and examples
 
 On Linux, `TestBMv2_L2Dataplane` sends real Ethernet frames through two host-facing interfaces. It checks L2 forwarding, unmatched-frame PacketIn, PacketOut on each port, direct and indirect counters, and the effect of deleting a forwarding entry. `TestBMv2_L2Examples` runs examples 02, 03, and 04, captures their actual traffic, checks the counter output, and stops the Packet I/O example with SIGINT.

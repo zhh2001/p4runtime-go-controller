@@ -418,6 +418,15 @@ func (p *Pipeline) Digest(name string) (*DigestDef, bool) {
 	return d, ok
 }
 
+// DigestByID returns the digest with the given P4 ID.
+func (p *Pipeline) DigestByID(id uint32) (*DigestDef, bool) {
+	if p == nil {
+		return nil, false
+	}
+	d, ok := p.digestsByID[id]
+	return d, ok
+}
+
 // PacketMetadata returns the controller packet metadata header with the
 // given name (typically "packet_in" or "packet_out").
 func (p *Pipeline) PacketMetadata(name string) (*ControllerPacketMetadataDef, bool) {

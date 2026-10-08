@@ -69,6 +69,16 @@ Registration returns a closure that removes the corresponding subscription. The 
 
 Handlers can register or cancel subscriptions, including their own. Changes apply to later messages. Cancellation returns without waiting for handlers already selected for the current message, which may still run. All handlers run in the stream receive goroutine and should return quickly.
 
+## Digest subscriptions
+
+`digest.Subscriber.Subscribe(name, handler)` resolves a P4Info name or alias and returns a cancellation function and an error. Unknown names, zero IDs and nil handlers return an error before registration. An empty name explicitly subscribes to all non-nil digest lists, including IDs absent from P4Info. Callbacks receive the raw `DigestList` without decoding its `P4Data`.
+
+`OnDigest` keeps its cancellation-only signature. Invalid subscriptions register nothing and return a no-op cancellation function. Use `Subscribe` when the caller needs to report registration errors. Both APIs follow the dispatcher's cancellation semantics above.
+
+`Ack` accepts only nonzero digest IDs declared in the subscriber's P4Info. It copies the batch's `digest_id` and `list_id` without changing the batch. It does not track received batches or require a live subscription, so processing can finish and acknowledge a batch after cancellation. `Client.SendDigestAck` remains available for raw acknowledgements. Sending an ACK waits for gRPC transmission and does not confirm target processing.
+
+These identifiers follow [P4Runtime's digest acknowledgement rules](https://p4lang.github.io/p4runtime/spec/v1.3.0/P4Runtime-Spec.html#sec-digestentry).
+
 ## SetPipeline fallback
 
 The default action is `VERIFY_AND_COMMIT`. When unsupported, it can fall back once to `RECONCILE_AND_COMMIT`. `NoFallback: true` disables this even when `Action` is omitted.
