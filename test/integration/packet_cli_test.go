@@ -45,4 +45,11 @@ func TestBMv2_PacketCLI(t *testing.T) {
 			require.True(t, iface.receives(t, frame, 3*time.Second), "CLI exited without sending its Ethernet frame, port %d, attempt %d", port, i+1)
 		}
 	}
+	frame := l2Frame(70)
+	output, err := exec.CommandContext(ctx, binary, "packet", "send", "--addr", targetAddr(), "--device-id", "1", "--election-id", "1", "--role", "", "--insecure=true", "--p4info", p4infoPath(), "--port", "512", "--hex", hex.EncodeToString(frame)).CombinedOutput()
+	require.Error(t, err)
+	require.Contains(t, string(output), "--port")
+	require.NotContains(t, string(output), "panic:")
+	require.False(t, one.receives(t, frame, 100*time.Millisecond))
+	require.False(t, two.receives(t, frame, 100*time.Millisecond))
 }

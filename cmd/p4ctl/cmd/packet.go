@@ -43,6 +43,22 @@ var packetSendCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		metadata, ok := p.PacketMetadata("packet_out")
+		if !ok {
+			return fmt.Errorf("--p4info must declare packet_out metadata")
+		}
+		portField, ok := metadata.Field("egress_port")
+		if !ok {
+			return fmt.Errorf("packet_out must declare egress_port metadata")
+		}
+		port, err := codec.EncodeUint(packetPort, int(portField.Bitwidth))
+		if err != nil {
+			return fmt.Errorf("--port: %w", err)
+		}
+		out := &packetio.PacketOut{Payload: raw, Metadata: map[string][]byte{"egress_port": port}}
+		if _, ok := metadata.Field("_pad"); ok {
+			out.Metadata["_pad"] = []byte{0}
+		}
 		ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer cancel()
 		c, err := dialClient(ctx)
@@ -54,12 +70,6 @@ var packetSendCmd = &cobra.Command{
 		sub, err := packetio.NewSubscriber(c, p)
 		if err != nil {
 			return err
-		}
-		out := &packetio.PacketOut{Payload: raw}
-		if packetPort > 0 {
-			out.Metadata = map[string][]byte{
-				"egress_port": codec.MustEncodeUint(packetPort, 9),
-			}
 		}
 		if err := sub.Send(ctx, out); err != nil {
 			return err

@@ -84,6 +84,8 @@ Some PI versions omit `metadata` from idle notifications while returning it corr
 
 On Linux, `TestBMv2_L2Dataplane` sends real Ethernet frames through two host-facing interfaces. It checks L2 forwarding, unmatched-frame PacketIn, PacketOut on each port, direct and indirect counters, and the effect of deleting a forwarding entry. `TestBMv2_L2Examples` runs examples 02, 03, and 04, captures their actual traffic, checks the counter output, and stops the Packet I/O example with SIGINT.
 
+`TestBMv2_PacketOutMetadata` checks that incomplete, unknown and out-of-range metadata returns an error without emitting a frame. Complete packets with leading zero bytes and explicit nil or zero padding must reach their selected port with the original payload. `TestBMv2_PacketCLI` sends twenty frames across both ports and checks that an out-of-range port returns an ordinary error without emitting a frame.
+
 Start BMv2 with device ID 1, CPU port 255, and data ports 1 and 2 bound to the switch ends of two veth pairs. Set `P4RT_HOST_IFACE1` and `P4RT_HOST_IFACE2` to their host ends. The tests need permission to open raw Ethernet sockets. They leave interface and target creation to the caller.
 
 `TestBMv2_PacketCLI` runs the actual `p4ctl packet send` command ten times for each port. After every command exits, it captures the complete Ethernet frame on the selected interface. Set `P4RT_CLI_BIN` to the CLI binary.
@@ -108,7 +110,7 @@ sudo env P4RT_TARGET=127.0.0.1:9559 \
   P4RT_COUNTER_EXAMPLE_BIN=/tmp/p4runtime-integration/counter-example \
   P4RT_CLI_BIN=/tmp/p4runtime-integration/p4ctl \
   /tmp/p4runtime-integration/integration.test \
-  -test.v -test.run '^TestBMv2_(L2(Dataplane|Examples)|PacketCLI)$'
+  -test.v -test.run '^TestBMv2_(L2(Dataplane|Examples)|Packet(CLI|OutMetadata))$'
 ```
 
 Replace `host1` and `host2` with the host interface names. With no host interfaces configured, the Ethernet tests are skipped. Example binary paths are also required for the example test.

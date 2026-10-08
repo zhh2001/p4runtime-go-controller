@@ -120,6 +120,8 @@ p4ctl packet send --p4info ./examples/testdata/l2.p4info.txt \
 
 The payload is a complete Ethernet frame. The L2 program uses CPU port 255 for Packet I/O, and BMv2 must bind a host-facing interface to output port 1.
 
+The command requires `packet_out` metadata with an `egress_port` field. It uses that field's declared bit width and supplies zero for `_pad` when present. Port zero is sent as `00`; an out-of-range port returns an error. Pipelines with additional metadata fields require an SDK application that supplies all fields.
+
 The command waits for gRPC to send the request, half-closes the stream, and waits for the target's final RPC status before exiting. Its 10-second deadline also covers connection setup. A timeout or failed final status returns an error. Successful stream completion does not acknowledge individual packet forwarding. Use [example 03](../../examples/03_packetio/README.md) for a session that continues receiving PacketIn.
 
 ### 5. Read indirect counters

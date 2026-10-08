@@ -55,6 +55,11 @@ func (s *Subscriber) OnPacket(h func(context.Context, *PacketIn)) func() {
 	})
 }
 
+// Send requires exactly the metadata fields declared by packet_out, including
+// padding. An explicitly supplied nil or empty value encodes zero. Metadata
+// values use unsigned integer encoding and must fit the declared bit widths.
+// Without a packet_out definition, only empty metadata is accepted.
+//
 // Send encodes out and waits for gRPC to send the PacketOut. Success does not
 // acknowledge target receipt or packet forwarding. Before ending a short-lived
 // session, use Client.CloseGracefully with a deadline.
@@ -63,15 +68,24 @@ func (s *Subscriber) Send(ctx context.Context, out *PacketOut) error {
 		return fmt.Errorf("packetio.Send: nil packet")
 	}
 	msg := &p4v1.PacketOut{Payload: out.Payload}
-	if s.outMeta != nil {
-		for name, value := range out.Metadata {
-			f, ok := s.outMeta.Field(name)
-			if !ok {
+	if s.outMeta == nil {
+		if len(out.Metadata) != 0 {
+			return fmt.Errorf("packetio.Send: metadata supplied without a packet_out definition")
+		}
+	} else {
+		for name := range out.Metadata {
+			if _, ok := s.outMeta.Field(name); !ok {
 				return fmt.Errorf("packetio.Send: unknown metadata %q", name)
+			}
+		}
+		for _, f := range s.outMeta.Metadata {
+			value, ok := out.Metadata[f.Name]
+			if !ok {
+				return fmt.Errorf("packetio.Send: missing metadata %q", f.Name)
 			}
 			canon, err := codec.EncodeBytes(value, int(f.Bitwidth))
 			if err != nil {
-				return fmt.Errorf("packetio.Send metadata %q: %w", name, err)
+				return fmt.Errorf("packetio.Send metadata %q: %w", f.Name, err)
 			}
 			msg.Metadata = append(msg.Metadata, &p4v1.PacketMetadata{
 				MetadataId: f.ID,

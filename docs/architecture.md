@@ -103,6 +103,14 @@ These checks follow [P4Runtime's table entry rules](https://p4lang.github.io/p4r
 - `EncodeBytes(bytes, bits)` — strips leading zeros, validates bit width.
 - `LPMMask(value, prefix, bits)` — applies a prefix-length mask to value and returns the canonical encoding.
 
+## Packet I/O metadata
+
+`packetio.Subscriber.Send` validates all metadata before submitting a PacketOut. Every field declared by `packet_out` must be supplied, including padding. Missing and unknown names return an error. An explicit nil, empty or all-zero value encodes `00`. Unsigned values must fit their declared bit widths. The outgoing fields follow P4Info declaration order.
+
+Without a `packet_out` definition, the subscriber accepts payload-only packets with empty metadata. Supplying metadata in that case returns an error. These rules follow [P4Runtime's Packet I/O requirements](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html#sec-packet-io).
+
+`p4ctl packet send` reads the `egress_port` bit width from P4Info, includes port zero and supplies zero for the bundled `_pad` field when present. Missing header or port definitions and out-of-range ports return errors before connecting. Programs with additional metadata fields require an application that supplies them through the SDK.
+
 ## Error taxonomy
 
 Every sentinel in the public `errors` package has a narrow, well-defined meaning. Wrapping with `fmt.Errorf("%w", errs.Err...)` is the preferred pattern; callers use `errors.Is`.
