@@ -61,6 +61,8 @@ On Linux, `TestBMv2_L2Dataplane` sends real Ethernet frames through two host-fac
 
 Start BMv2 with device ID 1, CPU port 255, and data ports 1 and 2 bound to the switch ends of two veth pairs. Set `P4RT_HOST_IFACE1` and `P4RT_HOST_IFACE2` to their host ends. The tests need permission to open raw Ethernet sockets. They leave interface and target creation to the caller.
 
+`TestBMv2_PacketCLI` runs the actual `p4ctl packet send` command ten times for each port. After every command exits, it captures the complete Ethernet frame on the selected interface. Set `P4RT_CLI_BIN` to the CLI binary.
+
 From the repository root:
 
 ```bash
@@ -69,6 +71,7 @@ mkdir -p /tmp/p4runtime-integration
 go build -o /tmp/p4runtime-integration/l2-example ./examples/02_l2_switch
 go build -o /tmp/p4runtime-integration/packet-example ./examples/03_packetio
 go build -o /tmp/p4runtime-integration/counter-example ./examples/04_counters
+go build -o /tmp/p4runtime-integration/p4ctl ./cmd/p4ctl
 go test -c -race -tags=integration \
   -o /tmp/p4runtime-integration/integration.test ./test/integration
 sudo env P4RT_TARGET=127.0.0.1:9559 \
@@ -78,8 +81,9 @@ sudo env P4RT_TARGET=127.0.0.1:9559 \
   P4RT_L2_EXAMPLE_BIN=/tmp/p4runtime-integration/l2-example \
   P4RT_PACKET_EXAMPLE_BIN=/tmp/p4runtime-integration/packet-example \
   P4RT_COUNTER_EXAMPLE_BIN=/tmp/p4runtime-integration/counter-example \
+  P4RT_CLI_BIN=/tmp/p4runtime-integration/p4ctl \
   /tmp/p4runtime-integration/integration.test \
-  -test.v -test.run '^TestBMv2_L2(Dataplane|Examples)$'
+  -test.v -test.run '^TestBMv2_(L2(Dataplane|Examples)|PacketCLI)$'
 ```
 
 Replace `host1` and `host2` with the host interface names. With no host interfaces configured, the Ethernet tests are skipped. Example binary paths are also required for the example test.

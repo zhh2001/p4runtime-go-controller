@@ -156,8 +156,9 @@ func (c *Client) OnIdleTimeout(cb IdleTimeoutHandler) func() { return c.dispatch
 // handler. Handlers already selected for the current message may still run.
 func (c *Client) OnStreamMessage(cb StreamMessageHandler) func() { return c.dispatch.addStream(cb) }
 
-// SendStreamRequest enqueues a raw StreamMessageRequest. Prefer the typed
-// helpers (SendPacketOut, SendDigestAck) where possible.
+// SendStreamRequest waits for gRPC to send a raw StreamMessageRequest. Success
+// does not confirm target receipt. Use CloseGracefully to finish a short-lived
+// session. Prefer the typed helpers (SendPacketOut, SendDigestAck) where possible.
 func (c *Client) SendStreamRequest(ctx context.Context, req *p4v1.StreamMessageRequest) error {
 	if !c.IsPrimary() {
 		return errs.ErrNotPrimary

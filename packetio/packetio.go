@@ -55,7 +55,9 @@ func (s *Subscriber) OnPacket(h func(context.Context, *PacketIn)) func() {
 	})
 }
 
-// Send encodes out and delivers it to the target as a PacketOut.
+// Send encodes out and waits for gRPC to send the PacketOut. Success does not
+// acknowledge target receipt or packet forwarding. Before ending a short-lived
+// session, use Client.CloseGracefully with a deadline.
 func (s *Subscriber) Send(ctx context.Context, out *PacketOut) error {
 	if out == nil {
 		return fmt.Errorf("packetio.Send: nil packet")

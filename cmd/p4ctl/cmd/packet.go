@@ -61,7 +61,10 @@ var packetSendCmd = &cobra.Command{
 				"egress_port": codec.MustEncodeUint(packetPort, 9),
 			}
 		}
-		return sub.Send(ctx, out)
+		if err := sub.Send(ctx, out); err != nil {
+			return err
+		}
+		return c.CloseGracefully(ctx)
 	},
 }
 

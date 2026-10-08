@@ -175,6 +175,17 @@ func (c *Client) Close() error {
 	return closeErr
 }
 
+// CloseGracefully stops new stream requests, completes accepted sends, and
+// half-closes the current StreamChannel. It waits for the target's final RPC
+// status before releasing the connection. It always closes the client, including
+// on timeout or error. Use a context with a deadline and call this outside stream
+// handlers. Close can interrupt it. A successful RPC status does not acknowledge
+// individual PacketOut forwarding or digest processing.
+func (c *Client) CloseGracefully(ctx context.Context) error {
+	err := c.sup.CloseGracefully(ctx)
+	return errors.Join(err, c.Close())
+}
+
 // DeviceID returns the device_id this client is bound to.
 func (c *Client) DeviceID() uint64 { return c.opts.deviceID }
 

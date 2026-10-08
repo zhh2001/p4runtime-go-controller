@@ -66,16 +66,16 @@ func TestSupervisorShutdownUnblocksSend(t *testing.T) {
 			return nil, ctx.Err()
 		}, nil)
 		s.Start(ctx)
-		for range cap(s.sendCh) {
-			require.NoError(t, s.Send(context.Background(), &p4v1.StreamMessageRequest{}))
+		count := cap(s.sendCh) + 2
+		done := make(chan error, count)
+		for range count {
+			go func() { done <- s.Send(context.Background(), &p4v1.StreamMessageRequest{}) }()
 		}
-		done := make(chan error, 1)
-		go func() {
-			done <- s.Send(context.Background(), &p4v1.StreamMessageRequest{})
-		}()
 		synctest.Wait()
 		cancel()
-		assert.ErrorIs(t, <-done, errStopped)
+		for range count {
+			assert.ErrorIs(t, <-done, errStopped)
+		}
 		s.Close()
 	})
 }
@@ -145,7 +145,7 @@ func TestSupervisorReconnectRevokesMastership(t *testing.T) {
 					if failure == "recv" {
 						close(failRecv)
 					} else {
-						require.NoError(t, s.Send(context.Background(), &p4v1.StreamMessageRequest{}))
+						require.ErrorIs(t, s.Send(context.Background(), &p4v1.StreamMessageRequest{}), failed)
 					}
 					synctest.Wait()
 					require.Equal(t, 2, dials)

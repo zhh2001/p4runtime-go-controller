@@ -148,7 +148,9 @@ Write requests expose the P4Runtime atomicity setting. Support for rollback, dat
 
 Election coordination between controller processes is outside the SDK. Applications can use an external coordination service to assign election IDs.
 
-Stream requests use a bounded queue. Receive handlers run inline, so their execution time affects the next receive. Queue sizing and delivery policies are areas for future configuration.
+Stream requests use a bounded queue. Send waits for the request's gRPC send to complete. Canceled queued requests are skipped, and requests from a failed stream are not replayed. Canceling a send already in progress can interrupt that stream. Receive handlers run inline, so their execution time affects the next receive.
+
+Close aborts the session immediately. CloseGracefully(ctx) stops accepting stream requests, completes accepted sends, half-closes the StreamChannel, and waits for the target's final RPC status. It then closes the client even on timeout or failure. Use a deadline and call it outside receive handlers. Successful stream completion does not acknowledge individual PacketOut forwarding or digest processing.
 
 ## Error Classification
 

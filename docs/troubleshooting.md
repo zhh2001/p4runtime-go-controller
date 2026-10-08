@@ -71,6 +71,12 @@ P4Runtime's canonical integer encoding uses the shortest nonempty byte string. Z
 
 For an OPTIONAL match, use `tableentry.Optional(nil)` for a wildcard and `tableentry.Optional(codec.MustEncodeUint(0, width))` to match zero. A zero value remains an explicit match.
 
+## Ending a session after PacketOut
+
+`SendPacketOut` and `packetio.Subscriber.Send` wait for gRPC to accept the request for transmission. They do not wait for target receipt. For a session that sends a packet and then exits, call `CloseGracefully(ctx)` with a deadline. It half-closes the send direction, waits for the target's final RPC status, and releases the client even if the wait fails. `p4ctl packet send` uses this sequence.
+
+Some targets keep the response stream open after the send direction closes. For those targets, the graceful wait returns the context error at its deadline. Do not retry automatically after a send or close error, since the target may already have received the request. Stream completion does not acknowledge individual packet forwarding. Stream handlers should use `Close` when they need to abort, and leave graceful shutdown to the caller.
+
 ## Packet-in decode drops metadata
 
 The SDK only decodes metadata fields it can resolve through the active `Pipeline`. If a metadata field is missing, verify that the P4Info you loaded actually declares `controller_packet_metadata` with the expected name and field IDs.

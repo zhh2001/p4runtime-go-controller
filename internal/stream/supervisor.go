@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/rand/v2"
 	"sync"
@@ -12,6 +13,8 @@ import (
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
+
+	errs "github.com/zhh2001/p4runtime-go-controller/errors"
 )
 
 // State is the observable mastership state of a P4Runtime StreamChannel.
@@ -90,12 +93,53 @@ type Supervisor struct {
 	state   State
 	lastErr error
 	changed chan struct{}
+	cancel  context.CancelFunc
+	grace   *sendRequest
 
-	events  chan Event
-	sendCh  chan *p4v1.StreamMessageRequest
-	stop    chan struct{}
-	stopped chan struct{}
+	events   chan Event
+	sendCh   chan *sendRequest
+	sendGate chan struct{}
+	draining chan struct{}
+	stop     chan struct{}
+	stopped  chan struct{}
+	once     sync.Once
+}
+
+type sendRequest struct {
+	ctx     context.Context
+	message *p4v1.StreamMessageRequest // nil closes the send direction
+	state   <-chan struct{}
+	done    chan struct{}
+	err     error
 	once    sync.Once
+}
+
+func (r *sendRequest) finish(err error) {
+	r.once.Do(func() {
+		r.err = err
+		close(r.done)
+	})
+}
+
+func (r *sendRequest) wait(ctx context.Context, stopped <-chan struct{}) error {
+	select {
+	case <-r.done:
+		return r.err
+	default:
+	}
+	select {
+	case <-r.done:
+		return r.err
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-stopped:
+		select {
+		case <-r.done:
+			return r.err
+		default:
+			return errStopped
+		}
+	}
 }
 
 // New constructs a Supervisor. Start() must be called before any observable
@@ -113,18 +157,22 @@ func New(cfg Config, dial Dialer, onPkt PacketHandler) *Supervisor {
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
 	}
-	return &Supervisor{
-		cfg:     cfg,
-		dial:    dial,
-		onPkt:   onPkt,
-		log:     cfg.Logger,
-		state:   StateDisconnected,
-		changed: make(chan struct{}),
-		events:  make(chan Event, 16),
-		sendCh:  make(chan *p4v1.StreamMessageRequest, 16),
-		stop:    make(chan struct{}),
-		stopped: make(chan struct{}),
+	s := &Supervisor{
+		cfg:      cfg,
+		dial:     dial,
+		onPkt:    onPkt,
+		log:      cfg.Logger,
+		state:    StateDisconnected,
+		changed:  make(chan struct{}),
+		events:   make(chan Event, 16),
+		sendCh:   make(chan *sendRequest, 16),
+		sendGate: make(chan struct{}, 1),
+		draining: make(chan struct{}),
+		stop:     make(chan struct{}),
+		stopped:  make(chan struct{}),
 	}
+	s.sendGate <- struct{}{}
+	return s
 }
 
 // Events returns a receive-only channel of state transitions. The channel is
@@ -155,12 +203,45 @@ func (s *Supervisor) IsPrimary() bool {
 	return s.state == StatePrimary
 }
 
-// Send enqueues a StreamMessageRequest for the send goroutine. The request is
-// sent on whichever stream is currently connected; buffered requests queued
-// during a reconnect are drained onto the new stream after arbitration
-// completes.
+// Send waits for the request's gRPC Send to complete. Success does not confirm
+// target receipt or packet forwarding. Requests interrupted by a stream failure
+// are returned as errors and are not replayed. Cancellation after sending starts
+// can interrupt the stream, and the target may already have received the request.
 func (s *Supervisor) Send(ctx context.Context, req *p4v1.StreamMessageRequest) error {
+	if req == nil {
+		return fmt.Errorf("stream.Send: nil request")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	select {
+	case <-s.sendGate:
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.draining:
+		return errStopped
+	case <-s.stop:
+		return errStopped
+	case <-s.stopped:
+		return errStopped
+	}
+	_, changed := s.WatchState()
+	r := &sendRequest{ctx: ctx, message: req, state: changed, done: make(chan struct{})}
+	err := s.enqueue(r)
+	s.sendGate <- struct{}{}
+	if err != nil {
+		return err
+	}
+	return r.wait(ctx, s.stopped)
+}
+
+func (s *Supervisor) enqueue(r *sendRequest) error {
+	if err := r.ctx.Err(); err != nil {
+		return err
+	}
+	select {
+	case <-s.draining:
+		return errStopped
 	case <-s.stop:
 		return errStopped
 	case <-s.stopped:
@@ -168,10 +249,10 @@ func (s *Supervisor) Send(ctx context.Context, req *p4v1.StreamMessageRequest) e
 	default:
 	}
 	select {
-	case s.sendCh <- req:
+	case s.sendCh <- r:
 		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-r.ctx.Done():
+		return r.ctx.Err()
 	case <-s.stop:
 		return errStopped
 	case <-s.stopped:
@@ -179,11 +260,64 @@ func (s *Supervisor) Send(ctx context.Context, req *p4v1.StreamMessageRequest) e
 	}
 }
 
-var errStopped = errors.New("stream supervisor stopped")
+var errStopped = errs.ErrStreamClosed
+
+// CloseGracefully sends all accepted requests, half-closes the current stream,
+// and waits for its final status. No new requests or reconnects are allowed.
+// Close can interrupt this wait. The caller must also call Close to release
+// resources if ctx expires. Call this outside receive handlers with a deadline.
+func (s *Supervisor) CloseGracefully(ctx context.Context) error {
+	s.mu.RLock()
+	r := s.grace
+	s.mu.RUnlock()
+	if r != nil {
+		return r.wait(ctx, s.stopped)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	select {
+	case <-s.sendGate:
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.stopped:
+		return errStopped
+	}
+	s.mu.Lock()
+	r = s.grace
+	if r != nil {
+		s.mu.Unlock()
+		s.sendGate <- struct{}{}
+		return r.wait(ctx, s.stopped)
+	}
+	r = &sendRequest{ctx: ctx, done: make(chan struct{})}
+	s.grace = r
+	close(s.draining)
+	s.mu.Unlock()
+	select {
+	case <-r.done:
+	case <-s.stopped:
+		r.finish(errStopped)
+	default:
+		select {
+		case s.sendCh <- r:
+		case <-ctx.Done():
+			r.finish(ctx.Err())
+		case <-s.stopped:
+			r.finish(errStopped)
+		}
+	}
+	s.sendGate <- struct{}{}
+	return r.wait(ctx, s.stopped)
+}
 
 // Start launches the supervisor goroutine. It returns immediately. Use
 // Events() to observe transitions, and Close() to stop.
 func (s *Supervisor) Start(ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
+	s.mu.Lock()
+	s.cancel = cancel
+	s.mu.Unlock()
 	go s.run(ctx)
 }
 
@@ -191,13 +325,22 @@ func (s *Supervisor) Start(ctx context.Context) {
 // It does not wait for a packet handler already in progress, so handlers can
 // call Close themselves.
 func (s *Supervisor) Close() {
-	s.once.Do(func() { close(s.stop) })
+	s.once.Do(func() {
+		close(s.stop)
+		s.mu.RLock()
+		cancel := s.cancel
+		s.mu.RUnlock()
+		if cancel != nil {
+			cancel()
+		}
+	})
 	<-s.stopped
 }
 
 func (s *Supervisor) run(parent context.Context) {
 	defer close(s.stopped)
 	defer close(s.events)
+	defer s.failPending(errStopped)
 	defer func() {
 		if s.State() != StateDisconnected {
 			s.setState(StateDisconnected, nil)
@@ -211,6 +354,8 @@ func (s *Supervisor) run(parent context.Context) {
 		}
 		select {
 		case <-s.stop:
+			return
+		case <-s.draining:
 			return
 		default:
 		}
@@ -241,8 +386,11 @@ func (s *Supervisor) run(parent context.Context) {
 
 		// Successful arbitration → reset backoff and pump the stream.
 		backoff = s.cfg.BackoffInitial
-		s.serve(ctx, stream)
+		finished := s.serve(ctx, cancel, stream)
 		cancel()
+		if finished {
+			return
+		}
 	}
 }
 
@@ -294,7 +442,7 @@ func (s *Supervisor) arbitrate(ctx context.Context, stream p4v1.P4Runtime_Stream
 	}
 }
 
-func (s *Supervisor) serve(ctx context.Context, stream p4v1.P4Runtime_StreamChannelClient) {
+func (s *Supervisor) serve(ctx context.Context, cancel context.CancelFunc, stream p4v1.P4Runtime_StreamChannelClient) bool {
 	recvErr := make(chan error, 1)
 	arbitration := make(chan *p4v1.MasterArbitrationUpdate)
 	go func() {
@@ -328,19 +476,78 @@ func (s *Supervisor) serve(ctx context.Context, stream p4v1.P4Runtime_StreamChan
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return false
 		case <-s.stop:
-			return
+			return false
 		case arb := <-arbitration:
 			s.applyArbitration(arb)
 		case err := <-recvErr:
 			s.setState(StateDisconnected, err)
-			return
+			s.failPending(err)
+			return false
 		case req := <-s.sendCh:
-			if err := stream.Send(req); err != nil {
-				s.setState(StateDisconnected, err)
-				return
+			if err := req.ctx.Err(); err != nil {
+				req.finish(err)
+				continue
 			}
+			if req.message == nil {
+				err := s.finishStream(ctx, stream, recvErr, arbitration)
+				req.finish(err)
+				return true
+			}
+			if !s.IsPrimary() {
+				req.finish(errs.ErrNotPrimary)
+				continue
+			}
+			_, changed := s.WatchState()
+			if changed != req.state {
+				req.finish(errStopped)
+				continue
+			}
+			stopCancel := context.AfterFunc(req.ctx, cancel) //nolint:contextcheck // request cancellation must interrupt the active stream
+			err := stream.Send(req.message)
+			stopCancel()
+			if req.ctx.Err() != nil {
+				err = req.ctx.Err()
+			}
+			req.finish(err)
+			if err != nil {
+				s.setState(StateDisconnected, err)
+				s.failPending(err)
+				return false
+			}
+		}
+	}
+}
+
+func (s *Supervisor) finishStream(ctx context.Context, stream p4v1.P4Runtime_StreamChannelClient, recvErr <-chan error, arbitration <-chan *p4v1.MasterArbitrationUpdate) error {
+	if err := stream.CloseSend(); err != nil {
+		return err
+	}
+	for {
+		select {
+		case err := <-recvErr:
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return err
+		case arb := <-arbitration:
+			s.applyArbitration(arb)
+		case <-ctx.Done():
+			return errStopped
+		case <-s.stop:
+			return errStopped
+		}
+	}
+}
+
+func (s *Supervisor) failPending(err error) {
+	for {
+		select {
+		case req := <-s.sendCh:
+			req.finish(err)
+		default:
+			return
 		}
 	}
 }
@@ -381,6 +588,8 @@ func (s *Supervisor) sleep(ctx context.Context, d time.Duration) bool {
 	case <-ctx.Done():
 		return false
 	case <-s.stop:
+		return false
+	case <-s.draining:
 		return false
 	}
 }

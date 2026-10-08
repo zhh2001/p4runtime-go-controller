@@ -18,9 +18,10 @@ import (
 
 type lifecycleStream struct {
 	grpc.ClientStream
-	ctx  context.Context
-	send func(*p4v1.StreamMessageRequest) error
-	recv func() (*p4v1.StreamMessageResponse, error)
+	ctx       context.Context
+	send      func(*p4v1.StreamMessageRequest) error
+	recv      func() (*p4v1.StreamMessageResponse, error)
+	closeSend func() error
 }
 
 func (s *lifecycleStream) Context() context.Context { return s.ctx }
@@ -34,6 +35,13 @@ func (s *lifecycleStream) Send(req *p4v1.StreamMessageRequest) error {
 
 func (s *lifecycleStream) Recv() (*p4v1.StreamMessageResponse, error) {
 	return s.recv()
+}
+
+func (s *lifecycleStream) CloseSend() error {
+	if s.closeSend != nil {
+		return s.closeSend()
+	}
+	return nil
 }
 
 func arbitrationResponse(code codes.Code) *p4v1.StreamMessageResponse {
@@ -174,7 +182,7 @@ func TestSupervisorReconnectIgnoresOldResponses(t *testing.T) {
 				}, func(*p4v1.StreamMessageResponse) { packets++ })
 				s.Start(context.Background())
 				<-pending
-				require.NoError(t, s.Send(context.Background(), &p4v1.StreamMessageRequest{}))
+				require.ErrorContains(t, s.Send(context.Background(), &p4v1.StreamMessageRequest{}), "stream send failed")
 				synctest.Wait()
 				require.Equal(t, 2, dials)
 				require.Equal(t, StateBackup, s.State())
