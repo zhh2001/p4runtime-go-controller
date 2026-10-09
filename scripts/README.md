@@ -2,6 +2,20 @@
 
 Run these commands from the repository root.
 
+## Requirements
+
+All three BMv2 helpers use Bash. Compilation needs `p4c-bm2-ss` with v1model support on `PATH`. Set `P4C_BM2_SS` to select another compiler executable.
+
+| Command                             | Additional tools                                                                                                           |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `run-bmv2.sh` (native, the default) | Local `simple_switch_grpc` on `PATH`, or an executable selected by `SIMPLE_SWITCH_GRPC`.                                   |
+| `run-bmv2.sh --docker`              | An accessible Docker daemon and an image containing `simple_switch_grpc`. Compilation uses the local compiler.             |
+| `test-bmv2.sh`                      | Go 1.25 or newer, CGO and a supported C compiler for race detection, plus a running target. Make is needed for `make e2e`. |
+
+The test script can use an existing P4Info and JSON pair through `P4RT_P4INFO` and `P4RT_DEVICE_CONFIG`, as described below. In that case it uses those files directly. Set `GO` to select the Go executable for the test script.
+
+Linux Ethernet tests use existing data interfaces and raw socket permissions. Creating veth pairs uses `ip` from iproute2 and network administration permissions. Control plane operations and CPU Packet I/O loopback use the gRPC connection. See [the integration guide](../test/integration/README.md) for interface setup and optional tests.
+
 ## Start a target
 
 ```bash

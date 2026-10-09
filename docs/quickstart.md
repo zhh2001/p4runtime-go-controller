@@ -4,6 +4,8 @@ This guide covers installing the SDK, starting a local BMv2 target and writing y
 
 ## 1. Install
 
+Use Go 1.25 or newer. Add the SDK from your application's Go module. If you are starting a new project, create its directory and run `go mod init example.com/p4-controller` there first.
+
 ```sh
 go get github.com/zhh2001/p4runtime-go-controller@latest
 ```
@@ -14,7 +16,18 @@ If you only want the CLI:
 go install github.com/zhh2001/p4runtime-go-controller/cmd/p4ctl@latest
 ```
 
+Go installs `p4ctl` in `GOBIN`, or in `GOPATH/bin` when `GOBIN` is unset. Add that directory to `PATH` to run the CLI.
+
 ## 2. Bring up BMv2
+
+The bundled scripts require a repository checkout and Bash. Native mode needs `p4c-bm2-ss` and `simple_switch_grpc` on `PATH`. See [script requirements](../scripts/README.md#requirements) for Docker and integration-test tools.
+
+Get the repository and run the following commands from its root:
+
+```sh
+git clone https://github.com/zhh2001/p4runtime-go-controller.git
+cd p4runtime-go-controller
+```
 
 Start the local BMv2 target. The script compiles a matching L2 P4Info and device config, then uses device ID 1 and CPU port 255:
 
@@ -26,7 +39,7 @@ Keep the target running in another terminal. This command supports control plane
 
 Use `./scripts/run-bmv2.sh --docker` for a detached Docker target. Docker mode still requires local p4c. See [the script guide](../scripts/README.md) for custom ports and container names.
 
-With the target running, `make e2e` compiles its own matching L2 pair and runs the integration tests with race detection. L2 pipeline, arbitration and CPU Packet I/O tests run automatically. Other suites require the optional settings described in [the integration guide](../test/integration/README.md).
+With the target running, run `make e2e` from the repository root in another terminal. It compiles its own matching L2 pair and runs the integration tests with race detection, which needs CGO and a supported C compiler. L2 pipeline, arbitration and CPU Packet I/O tests run automatically. Other suites require the optional settings described in [the integration guide](../test/integration/README.md).
 
 ## 3. Your first program
 

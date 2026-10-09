@@ -5,8 +5,10 @@ Contributions are welcome. This document describes the workflow.
 ## Prerequisites
 
 - Go 1.25 or newer. `go.mod` declares the minimum version and preferred toolchain.
+- Git and Make for the commands below.
 - `golangci-lint` v2.14.0, `govulncheck`, and `shellcheck` for lint gates. Install the linter from the [official releases](https://github.com/golangci/golangci-lint/releases/tag/v2.14.0).
-- Docker for the optional BMv2 integration tests.
+
+Unit tests and tests against controlled gRPC servers run with the Go toolchain. The optional BMv2 tests also need Bash, `p4c-bm2-ss` and a running target. Native mode uses local `simple_switch_grpc`. Docker mode uses an accessible Docker daemon and an image containing `simple_switch_grpc`, while compilation still uses local p4c. See [script requirements](scripts/README.md#requirements).
 
 ## Local Setup
 
@@ -35,6 +37,22 @@ GOTOOLCHAIN=go1.25.0 go test -race -covermode=atomic -coverpkg=./... -coverprofi
 ```
 
 Replace `go1.25.0` with the version shown in a CI run to reproduce that run's toolchain. A bare `go` command can switch versions because of the preferred toolchain. Adding `+auto` to an explicit name also allows switching.
+
+## BMv2 integration tests
+
+From the repository root, start a native target in one terminal:
+
+```sh
+./scripts/run-bmv2.sh
+```
+
+In another terminal, run:
+
+```sh
+make e2e
+```
+
+The launcher and test script each compile a matching L2 P4Info and device config. The test script runs with race detection, which requires CGO and a C compiler supported by the Go toolchain. Use a dedicated target because tests install their pipeline. Docker startup, custom ports and compiler overrides are described in [the script guide](scripts/README.md). Linux Ethernet tests also need bound data interfaces and raw socket permissions. See [the integration guide](test/integration/README.md) for those tests and their settings.
 
 ## Workflow
 

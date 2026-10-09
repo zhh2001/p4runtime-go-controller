@@ -20,11 +20,15 @@
 
 ## 安装
 
+需要 Go 1.25 或更新版本。在应用的 Go 模块目录中运行：
+
 ```sh
 go get github.com/zhh2001/p4runtime-go-controller@latest
 ```
 
 ## 快速上手
+
+启动项目自带的 BMv2 目标前，请按 [快速上手指南](../quickstart.md) 获取仓库并准备工具。原生模式需要本地 `p4c-bm2-ss` 和 `simple_switch_grpc`，Docker 模式也需要本地 P4 编译器。
 
 ```go
 package main

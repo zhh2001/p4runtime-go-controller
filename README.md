@@ -19,11 +19,15 @@ A production-grade Go SDK for writing P4Runtime controllers.
 
 ## Install
 
+Requires Go 1.25 or newer. Run this command from your application's Go module:
+
 ```sh
 go get github.com/zhh2001/p4runtime-go-controller@latest
 ```
 
 ## Quickstart
+
+To start the bundled BMv2 target, follow [the Quickstart guide](docs/quickstart.md). It covers repository setup and the tools required for native and Docker modes.
 
 ```go
 package main

@@ -4,6 +4,8 @@ Reads the L2 program's indirect counter. Indexes correspond to egress ports. Run
 
 ## Run
 
+Use Go 1.25 or newer and run from the repository root. Follow [example 02](../02_l2_switch/README.md) to start BMv2, generate the matching L2 files and install the pipeline. Counter reads use the gRPC connection. Nonzero counts require matching traffic on bound data ports.
+
 ```sh
 go run ./examples/04_counters \
     --addr 127.0.0.1:9559 \

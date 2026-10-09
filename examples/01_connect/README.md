@@ -4,6 +4,8 @@ Dials a P4Runtime target, wins the primary election, and prints a summary of the
 
 ## Run
 
+Use Go 1.25 or newer and run from the repository root with a reachable P4Runtime target. To start local BMv2, follow [the script guide](../../scripts/README.md).
+
 ```sh
 go run ./examples/01_connect --addr 127.0.0.1:9559 --device-id 1 --election 1
 ```

@@ -4,9 +4,11 @@ Installs the L2 pipeline and writes an entry forwarding destination `00:11:22:33
 
 ## Prerequisites
 
-- Compile the bundled P4 program with `./scripts/compile-l2.sh`.
-- Start BMv2 with device ID 1 and CPU port 255 as described in [the fixture guide](../testdata/README.md).
-- Bind a host-facing interface to port 1 to receive forwarded frames.
+- Use Go 1.25 or newer and run commands from the repository root.
+- Start BMv2 with device ID 1 and CPU port 255 using `./scripts/run-bmv2.sh`. It compiles the matching L2 files used below. See [script requirements](../../scripts/README.md#requirements).
+- Binding a host-facing interface to port 1 enables forwarded traffic. See [the fixture guide](../testdata/README.md).
+
+For an existing target, generate the matching files with `./scripts/compile-l2.sh` before running the example. Use both files from the same compilation.
 
 ## Run
 

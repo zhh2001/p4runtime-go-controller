@@ -2,7 +2,9 @@
 
 Subscribes to PacketIn messages and prints each packet's ingress port and payload. With `--send-port`, it sends a 60-byte Ethernet frame at startup, including both `egress_port` and zero `_pad` metadata.
 
-First compile the L2 fixtures and run example 02 to install the pipeline. Start BMv2 with CPU port 255 and a host-facing interface on the chosen output port. See [the fixture guide](../testdata/README.md).
+Use Go 1.25 or newer and run commands from the repository root. Start BMv2 with `./scripts/run-bmv2.sh`, which compiles the L2 files, then run [example 02](../02_l2_switch/README.md) to install the pipeline. The command below sends to port 1, so bind a host-facing interface to that port. See [the fixture guide](../testdata/README.md) and [script requirements](../../scripts/README.md#requirements).
+
+For an existing target, compile the L2 files with `./scripts/compile-l2.sh` and install that pair first. CPU loopback uses `--send-port 255` and works through the gRPC connection.
 
 ## Run
 
