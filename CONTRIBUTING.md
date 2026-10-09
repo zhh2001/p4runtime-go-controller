@@ -54,6 +54,26 @@ make e2e
 
 The launcher and test script each compile a matching L2 P4Info and device config. The test script runs with race detection, which requires CGO and a C compiler supported by the Go toolchain. Use a dedicated target because tests install their pipeline. Docker startup, custom ports and compiler overrides are described in [the script guide](scripts/README.md). Linux Ethernet tests also need bound data interfaces and raw socket permissions. See [the integration guide](test/integration/README.md) for those tests and their settings.
 
+## API documentation
+
+Install the documentation generator and add Go's binary directory to `PATH`:
+
+```sh
+go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@v1.1.0
+export PATH="$(go env GOPATH)/bin:$PATH"
+make docs
+```
+
+The script writes `docs/api-reference.md` for all 12 public packages, including `codec` and `pre`. It excludes command, example, internal and integration-test packages. The reference is a local generated file. Regenerate it after changing exported declarations or their comments.
+
+To check an existing reference without rewriting it, run:
+
+```sh
+./scripts/gen-docs.sh --check
+```
+
+The check exits with a nonzero status when the file is missing or differs from the current source. See [gomarkdoc's command-line options](https://github.com/princjef/gomarkdoc#command-line-usage) for other flags.
+
 ## Workflow
 
 1. Open an issue before starting non-trivial work so the design can be agreed on first.
