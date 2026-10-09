@@ -15,7 +15,7 @@ A production-grade Go SDK for writing P4Runtime controllers.
 - Zero hard dependency beyond `google.golang.org/grpc`, `google.golang.org/protobuf`, and the official P4Runtime proto stubs.
 - Structured logging through `log/slog` and gRPC interceptor hooks for application metrics and tracing. Built-in metrics and adapters are planned. See [Observability](docs/observability.md).
 
-> The public API is stable as of `v1.0.0` and follows the [Go 1 compatibility promise](https://go.dev/doc/go1compat). Every change is documented in the [CHANGELOG](CHANGELOG.md).
+> Published releases preserve source compatibility within a major version under the [Go 1 compatibility policy](https://go.dev/doc/go1compat). The current development branch contains changes planned for the next major release and is not source-compatible with `v1.1.1`. See the [CHANGELOG](CHANGELOG.md) and [release guide](docs/releases.md).
 
 ## Install
 
@@ -83,9 +83,12 @@ See [`examples/`](examples/) for full end-to-end walkthroughs, including connect
 
 ## P4Runtime Compatibility
 
-| Controller version | P4Runtime spec |
-| ------------------ | -------------- |
-| `v1.x`             | 1.3.0+         |
+| Controller version              | P4Runtime spec |
+| ------------------------------- | -------------- |
+| `v1.x`                          | 1.3.0+         |
+| Development branch (next major) | 1.3.0+         |
+
+This is the protocol baseline. Optional resources and newer fields require target support. Byte-based PRE ports require P4Runtime 1.4 or later, and backup replicas require 1.5 or later. See [PRE](pre/README.md).
 
 ## Documentation
 

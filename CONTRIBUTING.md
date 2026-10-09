@@ -78,3 +78,7 @@ The launcher and test script each compile a matching L2 P4Info and device config
 - [ ] Commits are signed and follow Conventional Commits.
 
 See the [Code of Conduct](CODE_OF_CONDUCT.md) for expected behavior in all project spaces.
+
+## Releases
+
+See the [release guide](docs/releases.md) for version selection, local release validation and the tagged draft-release workflow. The current development branch is preparing the next major version. Its module path migration is still required before a release tag can be published.

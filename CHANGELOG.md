@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Starting with `v1.0.0` the public API follows the Go 1 compatibility promise; every breaking change requires a major version bump.
+Published releases follow the Go 1 source compatibility policy within a major version. Incompatible public API changes require a major version bump. The current Unreleased changes are planned for the next major release. See [Release preparation](docs/releases.md).
 
 ## [Unreleased]
 
@@ -24,6 +24,8 @@ Starting with `v1.0.0` the public API follows the Go 1 compatibility promise; ev
 
 ### Changed
 
+- Release preparation distinguishes published v1 APIs from the next major version under development. The Go module path migration must be completed before publishing that version.
+- GoReleaser keeps scoped and unscoped `feat!`, `fix!` and `docs!` subjects in their corresponding release-note groups.
 - Updated grpc-go to 1.83.2 and x/net to 0.60.0. Go 1.26 is now the minimum version, and Go 1.26.9 is the preferred toolchain.
 - `SendStreamRequest`, `SendPacketOut`, `SendDigestAck` and `packetio.Subscriber.Send` wait for gRPC send completion and return send errors to the caller. Completion does not acknowledge target processing or packet forwarding. CLI `packet send` uses graceful shutdown after sending. `Close` retains immediate shutdown and can be called from a stream handler.
 - Mastership becomes non-primary on disconnection or shutdown. `BecomePrimary` observes current state independently of `Events` and supports concurrent waiters. Stream shutdown coordinates queue closure with active senders.
@@ -49,6 +51,12 @@ Starting with `v1.0.0` the public API follows the Go 1 compatibility promise; ev
 - Canonical numeric zero is now a single `00` byte, including `codec.LPMMask` with prefix length zero. Test the prefix length to identify an LPM wildcard. `Optional(nil)` is a wildcard, while `Optional([]byte{})` explicitly matches zero.
 - `register.Reader.Write([]byte)` accepts only `bit<W>` and `int<W>`, including named types resolving to them. Signed values use big-endian two's complement. Use `WriteData` for other types. See [Register values](register/README.md).
 - Negative meter values, including the target-specific `-1` convention, are rejected. Use `Reset` for default GREEN behavior. An explicit zero configuration remains distinct from reset. See [Meter configuration](meter/README.md).
+
+## [1.1.1] - 2026-04-24
+
+### Added
+
+- Public `codec` package re-exporting the canonical integer, byte string, MAC, IPv4, IPv6, mask, range and hexadecimal helpers for use outside the module.
 
 ## [1.1.0] - 2026-04-21
 

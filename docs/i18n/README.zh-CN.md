@@ -16,7 +16,7 @@
 - 除了 `google.golang.org/grpc`、`google.golang.org/protobuf` 和官方 P4Runtime proto stubs，核心包无额外硬依赖。
 - 通过 `log/slog` 输出结构化日志，应用可通过 gRPC 拦截器接入度量和链路追踪。内置 metrics 接口及适配器仍在规划中。详见 [日志与度量](../observability.md)。
 
-> 自 `v1.0.0` 起，公共 API 遵循 [Go 1 兼容性承诺](https://go.dev/doc/go1compat)。任何破坏性变更都会记录在 [CHANGELOG](../../CHANGELOG.md) 中。
+> 已发布版本按 [Go 1 兼容性规则](https://go.dev/doc/go1compat) 保持同一主版本内的源码兼容。当前开发分支包含为下一主版本准备的变更，与 `v1.1.1` 不保持源码兼容。详见 [CHANGELOG](../../CHANGELOG.md) 和 [发布指南](../releases.md)。
 
 ## 安装
 
@@ -92,9 +92,12 @@ Meter 写入会按 P4Info 校验类型，速率和突发量必须非负。`EBurs
 
 ## 版本兼容
 
-| 控制器版本 | P4Runtime 规范 |
-| ---------- | -------------- |
-| `v1.x`     | 1.3.0+         |
+| 控制器版本             | P4Runtime 规范 |
+| ---------------------- | -------------- |
+| `v1.x`                 | 1.3.0+         |
+| 开发分支（下一主版本） | 1.3.0+         |
+
+这里列出的是协议基础版本。可选资源和新字段需要目标支持。PRE 的字节端口要求 P4Runtime 1.4 或更新版本，备份副本要求 1.5 或更新版本。详见 [PRE](../../pre/README.md)。
 
 ## 文档
 
