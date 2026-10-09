@@ -11,7 +11,8 @@ import (
 	"github.com/zhh2001/p4runtime-go-controller/pipeline"
 )
 
-// Data is a controller-facing counter sample.
+// Data is a controller-facing counter sample. Counts retain the target's int64
+// wire values without truncation or reinterpretation.
 type Data struct {
 	Name    string
 	ID      uint32
@@ -20,7 +21,7 @@ type Data struct {
 	Bytes   int64
 }
 
-// Reader reads indirect counters by name.
+// Reader reads and writes indirect counters by name or alias.
 type Reader struct {
 	c *client.Client
 	p *pipeline.Pipeline
@@ -77,6 +78,8 @@ func (r *Reader) Read(ctx context.Context, name string, index int64) ([]*Data, e
 // support counter writes; those will return ErrTargetUnsupported.
 // The index must be non-negative and within the array size, unless the counter
 // declares a named index type for target-side translation.
+// Both counts are sent unchanged. The target applies the declared counter unit
+// and its value limits. Passing zero for both counts sends explicit counter data.
 func (r *Reader) Write(ctx context.Context, name string, index int64, packets, bytes int64) error {
 	cdef, ok := r.p.Counter(name)
 	if !ok {

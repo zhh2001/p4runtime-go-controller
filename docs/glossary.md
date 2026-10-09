@@ -20,7 +20,7 @@ Domain terms used in P4 and P4Runtime. Definitions are deliberately short — po
 
 **Action profile** — A container for actions shared across table entries, typically used for ECMP or WCMP load-sharing. Out of scope for the current SDK version.
 
-**Counter** — A packet/byte counter attached either to a table (direct counter) or declared independently with an indexed array (indirect counter). Read through the `counter` package.
+**Counter**: A packet/byte counter attached to a table (direct counter) or declared as an indexed array (indirect counter). The `counter` package reads and writes indirect counters. Direct counters use the raw client API. See [Indirect counters](../counter/README.md).
 
 **Meter**: A token-bucket rate limiter. Configure CIR/CBurst/PIR/PBurst and EBurst for single-rate three-color meters through the `meter` package. Use Reset to restore default GREEN behavior. See [Indirect meters](../meter/README.md).
 

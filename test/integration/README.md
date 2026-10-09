@@ -152,6 +152,28 @@ Set both pipeline paths to run this test. It installs its pipeline on the select
 
 `TestBMv2_RegisterValues` uses the same pipeline pair. It checks local rejection of overflow and mismatched P4Data types, then inspects canonical zero, padded integer and maximum-value requests sent to the target. Targets with RegisterEntry support also undergo value readback. On targets without that support, the test verifies unsupported responses and reports that readback was unavailable. Controlled gRPC tests cover the other P4Data types and copying of caller values. See [Register arrays](../../register/README.md) for the write API.
 
+## Counter values and units
+
+`TestBMv2_CounterValues` writes and reads three four-entry arrays declared as PACKETS, BYTES and BOTH. It checks zero, ordinary counts, values above uint32 and both int64 boundaries. It inspects the Write RPC to verify that both fields and explicit zero data reach the target. Index 3 receives no data plane traffic. `TestBMv2_CounterCLI` checks signed decimal output and lossless JSON/YAML strings through the actual CLI.
+
+`TestBMv2_CounterDataplane` sends three Ethernet frames from port 1 to port 2 and checks packet and byte increments for each declared unit. It then writes zeros and verifies that counting resumes from zero. Compile the matching fixture and CLI from the repository root:
+
+```bash
+mkdir -p /tmp/p4runtime-integration/counters
+p4c-bm2-ss --arch v1model \
+  --p4runtime-files /tmp/p4runtime-integration/counters/counters.p4info.txtpb \
+  -o /tmp/p4runtime-integration/counters/counters.json \
+  test/integration/testdata/counters.p4
+go build -o /tmp/p4runtime-integration/p4ctl ./cmd/p4ctl
+P4RT_CLI_BIN=/tmp/p4runtime-integration/p4ctl \
+P4RT_COUNTER_P4INFO=/tmp/p4runtime-integration/counters/counters.p4info.txtpb \
+P4RT_COUNTER_DEVICE_CONFIG=/tmp/p4runtime-integration/counters/counters.json \
+go test -race -tags=integration -count=3 -v \
+  -run '^TestBMv2_Counter(Values|CLI|Dataplane)$' ./test/integration/...
+```
+
+Set both pipeline paths to enable the tests. CLI checks also require `P4RT_CLI_BIN`. The Linux data plane test requires `P4RT_HOST_IFACE1`, `P4RT_HOST_IFACE2` and `CAP_NET_RAW`. Each test installs its pipeline on a dedicated target with device ID 1. BMv2's PI implementation preserves unsigned 64-bit counter bit patterns in the int64 wire fields. The negative-value cases check that target behavior and do not establish support on other implementations. Controlled gRPC tests check SDK value preservation independently of BMv2.
+
 ## Meter configuration
 
 `TestBMv2_MeterConfigs` checks local rejection of negative values and invalid field relationships, then writes and reads configurations at indexes 0 and 3. It distinguishes an explicit zero Config from Reset and verifies that the target receives burst values above uint32 for its own validation.

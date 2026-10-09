@@ -18,7 +18,7 @@ var (
 	counterIndex  int64
 )
 
-var counterCmd = &cobra.Command{Use: "counter", Short: "Read or write P4 counters"}
+var counterCmd = &cobra.Command{Use: "counter", Short: "Read indirect P4 counters"}
 
 var counterReadCmd = &cobra.Command{
 	Use:   "read",

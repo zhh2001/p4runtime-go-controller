@@ -136,6 +136,8 @@ The table entry builder encodes match fields and action parameters before a writ
 
 Counter, meter and register readers accept `-1` to read the whole array. Other reads and all writes require a non-negative index. For ordinary indexes, the SDK checks the array size in P4Info before making an RPC. When `index_type_name` names a type, the target checks the index after any required translation. The SDK sends that non-negative value unchanged.
 
+Counter writes include both packet and byte counts, as allowed by P4Runtime. The target applies its declared unit and value limits. Reads and writes preserve the int64 wire values. Explicit zero data clears the applicable counts. Direct counters use the raw client API. See [Indirect counters](counter/README.md) for value and unit semantics.
+
 Meter writes require non-negative rates and bursts, and validate the field relationships declared by the meter type. `EBurst` represents the excess burst of single-rate three-color meters. Values retain their int64 range for target validation. `Reset` omits Config to restore default GREEN behavior, while `Write(Config{})` sends explicit zeros. See [Indirect meters](meter/README.md) for configuration rules and migration from legacy negative values.
 
 Register writes validate values against the P4Info type declaration and copy them before the RPC. `Write` accepts fixed-width integer bytes. `WriteData` accepts typed `P4Data`, including compound values and translated types. Fixed-width integers use their shortest encoding, while varbits retain their explicit length and translated strings retain their bytes. See [Register arrays](register/README.md) for accepted representations and limits.

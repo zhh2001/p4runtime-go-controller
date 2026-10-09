@@ -1,2 +1,2 @@
-// Package counter reads and writes P4Runtime counters (direct and indirect).
+// Package counter reads and writes indirect P4Runtime counters.
 package counter
