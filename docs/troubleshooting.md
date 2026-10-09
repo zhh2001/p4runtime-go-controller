@@ -89,9 +89,9 @@ Some targets keep the response stream open after the send direction closes. For 
 
 The SDK only decodes metadata fields it can resolve through the active `Pipeline`. If a metadata field is missing, verify that the P4Info you loaded actually declares `controller_packet_metadata` with the expected name and field IDs.
 
-## High CPU in the stream goroutine
+## Slow stream callbacks
 
-If you registered a slow `PacketInHandler`, it runs inline on the supervisor goroutine and blocks the next receive. Push work to a buffered channel or a worker pool.
+Packet, digest, idle-timeout and catch-all handlers run inline in the stream receive goroutine, separately from the supervisor's send loop. A slow handler delays the next receive, including arbitration responses and receive errors. Move slow work to a worker pool or an application queue, and handle a full queue without stalling reception. See [Performance Notes](performance.md#stream-callbacks).
 
 ## BMv2 on Apple Silicon
 

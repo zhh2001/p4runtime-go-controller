@@ -7,24 +7,56 @@ import (
 )
 
 func BenchmarkEncodeUint(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_, _ = codec.EncodeUint(uint64(i), 32)
+	for _, tc := range []struct {
+		name  string
+		value uint64
+		width int
+	}{
+		{"zero", 0, 32},
+		{"port", 511, 9},
+		{"uint32", 1<<32 - 1, 32},
+		{"uint64", ^uint64(0), 64},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				if _, err := codec.EncodeUint(tc.value, tc.width); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }
 
 func BenchmarkLPMMask(b *testing.B) {
-	v, _ := codec.IPv4("10.1.2.3")
+	v, err := codec.IPv4("10.1.2.3")
+	if err != nil {
+		b.Fatal(err)
+	}
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_, _ = codec.LPMMask(v, 24, 32)
+	for b.Loop() {
+		if _, err := codec.LPMMask(v, 24, 32); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
 func BenchmarkEncodeBytes(b *testing.B) {
-	in := []byte{0x00, 0x00, 0xab, 0xcd}
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_, _ = codec.EncodeBytes(in, 32)
+	for _, tc := range []struct {
+		name  string
+		value []byte
+	}{
+		{"canonical", []byte{0xab, 0xcd}},
+		{"padded", []byte{0x00, 0x00, 0xab, 0xcd}},
+		{"zero", []byte{0x00}},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				if _, err := codec.EncodeBytes(tc.value, 32); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }

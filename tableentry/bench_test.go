@@ -25,15 +25,36 @@ func BenchmarkTableEntryBuild(b *testing.B) {
 			Params:   []*p4configv1.Action_Param{{Id: 1, Name: "port", Bitwidth: 9}},
 		}},
 	}
-	p, _ := pipeline.New(info, nil)
+	p, err := pipeline.New(info, nil)
+	if err != nil {
+		b.Fatal(err)
+	}
 	mac := codec.MustMAC("00:11:22:33:44:55")
 	port := codec.MustEncodeUint(1, 9)
 
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_, _ = tableentry.NewBuilder(p, "t").
-			Match("hdr.eth.dst", tableentry.Exact(mac)).
-			Action("forward", tableentry.Param("port", port)).
-			Build()
-	}
+	b.Run("new", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			_, err := tableentry.NewBuilder(p, "t").
+				Match("hdr.eth.dst", tableentry.Exact(mac)).
+				Action("forward", tableentry.Param("port", port)).
+				Build()
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	b.Run("reused", func(b *testing.B) {
+		builder := tableentry.NewBuilder(p, "t")
+		b.ReportAllocs()
+		for b.Loop() {
+			_, err := builder.
+				Match("hdr.eth.dst", tableentry.Exact(mac)).
+				Action("forward", tableentry.Param("port", port)).
+				Build()
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
 }
