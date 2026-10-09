@@ -36,14 +36,27 @@ The L2 tests also check duplicate inserts, missing-entry modifications and delet
 
 `TestBMv2_PipelineActions` saves the config from `testdata/masks.p4`, writes a TERNARY entry, then commits with no config. It reads back the saved config and entry. It also checks that `VERIFY` and `RECONCILE_AND_COMMIT` retain the entry, while `VERIFY_AND_COMMIT` clears it. This test uses `P4RT_MASK_P4INFO` and `P4RT_MASK_DEVICE_CONFIG`, which must come from the same compilation.
 
-To check writes before pipeline installation, start a fresh target and run this test separately, before the rest of the suite:
+To check queries and writes before pipeline installation, start a fresh target and run these tests separately, before the rest of the suite:
 
 ```bash
 P4RT_TEST_FRESH_TARGET=1 go test -race -tags=integration -count=1 \
-  -run '^TestBMv2_WriteWithoutPipeline$' ./test/integration/...
+  -run '^TestBMv2_(WriteWithoutPipeline|GetPipelineWithoutPipeline)$' ./test/integration/...
 ```
 
 Do not set `P4RT_TEST_FRESH_TARGET` when running the full suite. Other tests install a pipeline.
+
+`TestBMv2_GetPipelineWithoutPipeline` compares the raw target error with the SDK result. It checks `ErrPipelineNotSet`, a nil pipeline and preservation of the complete gRPC status.
+
+On Linux, `TestBMv2_ConnectExample` runs the actual connection example and checks clean shutdown on SIGINT. With `P4RT_TEST_FRESH_TARGET=1`, it checks the no-pipeline message without installing a config. Otherwise it installs the bundled L2 config and checks the printed table and action counts. Build the binary from the repository root:
+
+```bash
+mkdir -p /tmp/p4runtime-integration
+go build -o /tmp/p4runtime-integration/connect-example ./examples/01_connect
+P4RT_CONNECT_EXAMPLE_BIN=/tmp/p4runtime-integration/connect-example \
+./scripts/test-bmv2.sh -count=3 -v -run '^TestBMv2_ConnectExample$'
+```
+
+For the fresh-target case, add `P4RT_TEST_FRESH_TARGET=1` and run before any pipeline is installed. The example test is skipped when its binary path is unset. Without the fresh-target flag, both L2 pipeline paths are required and the test script supplies them when unset.
 
 Some PI versions check LPM trailing zeros against the padded byte width. They reject these 9-bit LPM cases with `Invalid LPM value, incorrect number of trailing zeros`. These cases require PI to use the field width for that check. The TERNARY cases can be run separately with `-run '^TestBMv2_FieldWidthMasks$/ternary'`.
 

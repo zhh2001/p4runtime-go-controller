@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -127,7 +128,8 @@ func (c *Client) SetPipeline(ctx context.Context, p *pipeline.Pipeline, opts Set
 
 // GetPipeline fetches the forwarding pipeline currently active on the
 // target. A nil pipeline is returned when the target has no pipeline
-// installed (ErrPipelineNotSet).
+// installed (ErrPipelineNotSet). An explicit target error retains its
+// original gRPC status, including message and details.
 func (c *Client) GetPipeline(ctx context.Context) (*pipeline.Pipeline, error) {
 	req := &p4v1.GetForwardingPipelineConfigRequest{
 		DeviceId:     c.opts.deviceID,
@@ -135,6 +137,12 @@ func (c *Client) GetPipeline(ctx context.Context) (*pipeline.Pipeline, error) {
 	}
 	resp, err := c.rpc.GetForwardingPipelineConfig(ctx, req)
 	if err != nil {
+		var rpcError interface{ GRPCStatus() *status.Status }
+		if errors.As(err, &rpcError) {
+			if st := rpcError.GRPCStatus(); st != nil {
+				return nil, &getPipelineError{cause: err, rpcStatus: st}
+			}
+		}
 		return nil, fmt.Errorf("GetForwardingPipelineConfig: %w", err)
 	}
 	cfg := resp.GetConfig()

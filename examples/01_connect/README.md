@@ -1,7 +1,6 @@
 # Example 01: connect
 
-Dials a P4Runtime target, wins the primary election, and prints a summary of
-the installed pipeline (if any).
+Dials a P4Runtime target, wins the primary election, and prints a summary of the installed pipeline (if any).
 
 ## Run
 
@@ -18,5 +17,6 @@ connected: device_id=1 election_id=0:1 state=primary
 no pipeline installed — run example 02 to push one
 ```
 
-Once a pipeline is installed (see example 02) the second line lists how many
-tables and actions P4Info exposed.
+Once a pipeline is installed (see example 02) the second line lists how many tables and actions P4Info exposed.
+
+The example waits until Ctrl+C in either case, then prints `shutting down` and closes the connection. It recognizes both an empty pipeline response and the pipeline-missing error returned by a fresh BMv2 target.

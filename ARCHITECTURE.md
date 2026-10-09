@@ -165,13 +165,15 @@ Close aborts the session immediately. CloseGracefully(ctx) stops accepting strea
 Sentinel errors in the public `errors` package let callers react programmatically:
 
 - `ErrNotPrimary` — operation requires primary mastership.
-- `ErrPipelineNotSet` — target has no active pipeline yet.
+- `ErrPipelineNotSet` — a pipeline query or operation reports that no pipeline is configured.
 - `ErrEntryExists` / `ErrEntryNotFound` — write-path idempotency helpers.
 - `ErrUnsupportedMatchKind` — match kind not supported by the target pipeline.
 - `ErrTargetUnsupported` — target does not support the attempted feature (e.g., `VERIFY_AND_COMMIT`).
 - `ErrStreamClosed` — stream was closed by the target or by `Client.Close`.
 
 The concrete error type wraps the gRPC status so callers can still use `status.FromError`.
+
+`GetPipeline` reports `ErrPipelineNotSet` for an absent config or P4Info in a successful response, and for explicit pipeline-missing `FailedPrecondition` responses. RPC errors keep the target's original code, message and details. The operation name appears in the error text, while `status.FromError` returns the target status unchanged.
 
 Write RPC failures return `*errors.WriteError`. Its `Updates` slice contains one `p4.Error` per request update, in the original order, including successful updates with code `OK`. `errors.Is` matches any failed update. The RPC status retains its original code, message, and details, so a per-update failure still has RPC code `Unknown`. Missing or malformed results leave `Updates` nil.
 

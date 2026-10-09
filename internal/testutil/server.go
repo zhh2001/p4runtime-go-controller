@@ -39,6 +39,8 @@ type MockServer struct {
 	SetPipelineReq         *p4v1.SetForwardingPipelineConfigRequest
 	SetPipelineRequests    []*p4v1.SetForwardingPipelineConfigRequest
 	GetPipelineResp        *p4v1.GetForwardingPipelineConfigResponse
+	GetPipelineRequests    []*p4v1.GetForwardingPipelineConfigRequest
+	OverrideGetPipelineErr error
 	OverrideWriteErr       error
 	OverrideReadResp       []*p4v1.ReadResponse
 	ArbitrationRejection   *rpcstatus.Status // optional: forces a non-primary response for the first arb
@@ -197,12 +199,17 @@ func (m *MockServer) SetForwardingPipelineConfig(_ context.Context, req *p4v1.Se
 	return &p4v1.SetForwardingPipelineConfigResponse{}, nil
 }
 
-// GetForwardingPipelineConfig replays GetPipelineResp if configured, or
-// returns an empty response otherwise.
-func (m *MockServer) GetForwardingPipelineConfig(_ context.Context, _ *p4v1.GetForwardingPipelineConfigRequest) (*p4v1.GetForwardingPipelineConfigResponse, error) {
+// GetForwardingPipelineConfig records the request and returns the configured
+// error or response. Without either, it returns an empty response.
+func (m *MockServer) GetForwardingPipelineConfig(_ context.Context, req *p4v1.GetForwardingPipelineConfigRequest) (*p4v1.GetForwardingPipelineConfigResponse, error) {
 	m.Mu.Lock()
+	m.GetPipelineRequests = append(m.GetPipelineRequests, req)
 	resp := m.GetPipelineResp
+	err := m.OverrideGetPipelineErr
 	m.Mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
 	if resp != nil {
 		return resp, nil
 	}

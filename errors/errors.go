@@ -16,8 +16,8 @@ var (
 	// device.
 	ErrNotPrimary = errors.New("not primary controller for device")
 
-	// ErrPipelineNotSet is returned when an operation requires an active
-	// forwarding pipeline and none has been configured on the target.
+	// ErrPipelineNotSet is returned when an operation or pipeline query
+	// reports that no forwarding pipeline is configured on the target.
 	ErrPipelineNotSet = errors.New("pipeline not set on target")
 
 	// ErrEntryExists is returned by Insert when the table entry already

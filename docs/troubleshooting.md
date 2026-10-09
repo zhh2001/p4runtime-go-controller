@@ -44,6 +44,14 @@ _, err := c.SetPipeline(ctx, nil, client.SetPipelineOptions{
 
 BMv2 1.15.0-2bdd0b7b with PI 5689c91 cannot reconcile the bundled L2 pipeline's indirect counters. PI restores them using `INSERT`, and the target logs `INSERT update type not supported for counters`. The RPC returns `Error when reconciling config` and can leave the device in an unfinished update. Restart that target before installing with `VERIFY_AND_COMMIT`. Restarting and fresh installation clear forwarding state. Initial installation and counter reads work with this build.
 
+## GetPipeline returns `ErrPipelineNotSet`
+
+Use `errors.Is(err, errs.ErrPipelineNotSet)` to detect a target with no configured pipeline. `GetPipeline` returns a nil pipeline when a successful response has no config or P4Info. It also recognizes `FailedPrecondition` responses with an explicit pipeline-missing message, including BMv2's `No forwarding pipeline config set for this device`.
+
+For an RPC failure, `status.FromError` retains the target's original code, message and details. Other failures, including an unknown device, denied access and a mismatched pipeline cookie, retain their own errors. GetPipeline sends one request and does not install a config.
+
+A response with P4Info and no device config still returns a usable `Pipeline`. Some targets cannot return their device-specific config, as described in the [P4Runtime specification](https://p4lang.github.io/p4runtime/spec/v1.5.0/P4Runtime-Spec.html#sec-get-forwarding-pipeline-config).
+
 ## Write returns `Unknown`
 
 P4Runtime reports per-update failures with RPC code `Unknown` and ordered `p4.Error` details. Use `errors.Is(err, errs.ErrEntryExists)` or `errors.Is(err, errs.ErrEntryNotFound)` to classify known failures. In a batch, either match can refer to just one update.
