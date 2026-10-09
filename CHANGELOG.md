@@ -10,14 +10,45 @@ Starting with `v1.0.0` the public API follows the Go 1 compatibility promise; ev
 
 ### Added
 
+- `client.Client.CloseGracefully(ctx)` drains accepted stream sends, half-closes StreamChannel and waits for the target's final RPC status. It releases the connection on success, error or timeout. Use a deadline and call it outside stream handlers.
+- `errors.WriteError` preserves the original gRPC status and complete per-update results in request order, including successful updates. Use the standard library's `errors.As` to inspect `Updates` before retrying a partially successful batch. Its `errors.Is` matches any failed update. `Updates` is nil when the response lacks valid, complete results.
+- `tableentry.Builder.BuildKey()` builds table keys without requiring an action. It includes table ID, matches, priority and the default-entry flag. CLI table deletion uses this key without an action.
+- `digest.Subscriber.Subscribe(name, handler)` returns a cancellation function and a validation error. `OnDigest` remains available and returns a no-op cancellation function for invalid subscriptions. An empty name subscribes to every non-nil digest notification.
+- `pre.Replica.Port`, `pre.Replica.BackupReplicas` and `pre.BackupReplica` preserve byte ports and ordered backups. Byte ports retain their original bytes, including leading zeros and target-specific string encodings. Set either `Port` or the legacy `EgressPort`.
+- `register.Reader.WriteData(ctx, name, index, data)` validates typed P4Data against P4Info and copies it before sending. It supports compound values and translated types. Varbits preserve their bytes and require an explicit bitwidth with matching length. Varbit fields in valid headers are unsupported because P4Header does not carry their bitwidth.
+- `meter.Config.EBurst` supports single-rate three-color meters. `meter.Reader.Reset(ctx, name, index)` omits the configuration to restore default GREEN behavior. `Write(Config{})` continues to send an explicit zero configuration.
+- CLI TLS configuration with `--insecure=false`, system CAs by default, `--tls-ca`, `--tls-server-name` and paired `--tls-cert` / `--tls-key` options for mutual authentication. TLS options are rejected when insecure transport is selected.
+- Global CLI configuration through `--config-file` and `P4CTL_CONFIG_FILE`. The legacy global `--config` remains available outside `pipeline set`, where `--config` selects the device configuration.
+- CLI JSON and YAML output for `connect`, `pipeline set|get`, `table read` and `counter read`. Read results are arrays, including empty results. Protobuf values use the official JSON mapping, and diagnostics go to stderr.
 - StreamChannel logging through the configured `slog.Logger`, covering opening attempts, mastership changes, failures, retry delays and shutdown. See [Observability](docs/observability.md).
 
 ### Changed
 
 - Updated grpc-go to 1.83.2 and x/net to 0.60.0. Go 1.26 is now the minimum version, and Go 1.26.9 is the preferred toolchain.
+- `SendStreamRequest`, `SendPacketOut`, `SendDigestAck` and `packetio.Subscriber.Send` wait for gRPC send completion and return send errors to the caller. Completion does not acknowledge target processing or packet forwarding. CLI `packet send` uses graceful shutdown after sending. `Close` retains immediate shutdown and can be called from a stream handler.
+- Mastership becomes non-primary on disconnection or shutdown. `BecomePrimary` observes current state independently of `Events` and supports concurrent waiters. Stream shutdown coordinates queue closure with active senders.
+- Stream callbacks run outside the registration lock and can register or cancel subscriptions. Cancellation affects future dispatches. Callbacks already selected for the current message may still run.
+- `SetPipeline` requires a nil pipeline for `PipelineCommit` and a non-nil pipeline for other actions. Only VERIFY_AND_COMMIT may fall back to RECONCILE_AND_COMMIT when the target reports an unsupported action. Explicit VERIFY, VERIFY_AND_SAVE, COMMIT and RECONCILE_AND_COMMIT actions stay within their requested scope. `NoFallback` also applies to the default action.
+- Read requests include the configured role without requiring primary status. `GetPipeline` reports `ErrPipelineNotSet` for an absent configuration while preserving the target's gRPC status and details when present. A configuration containing only P4Info remains usable.
+- Table entry validation checks required exact matches, field widths, action membership and scope, priority, idle timeout support and constant-table restrictions. LPM and ternary masks use the declared field width. Range endpoints are compared after normalization. Full-range, zero-prefix LPM, zero-mask ternary and nil optional matches are omitted as wildcards.
+- PacketOut metadata must supply every field declared by P4Info, including padding fields. Metadata is validated and encoded in declaration order. CLI packet sending derives the egress-port width from P4Info and fills padding fields with zero.
+- Digest acknowledgements require a nonzero digest ID declared in P4Info. They may be sent after subscription cancellation and do not require an active subscription.
+- Counter, meter and register reads use `-1` to select all entries and reject other negative indexes. Writes require a non-negative index. Ordinary indexes are checked against the declared array size. Named index types are left to target-side translation and validation.
+- Meter writes validate the declared meter type and require non-negative rates and bursts. Two-rate meters require PIR >= CIR. Single-rate meters require CIR = PIR and CBurst = PBurst. EBurst is zero except for single-rate three-color meters. Target-specific numeric limits remain with the target.
+- CLI configuration precedence is flags, non-empty environment variables, configuration file, then defaults. Explicit missing, unreadable or invalid configuration files return errors before dialing.
+- CLI table values, masks, ranges and action parameters share P4Info width validation. Valid IPv6 takes precedence over colon-separated bytes. Use a `0x` prefix for unambiguous raw bytes, such as `0x01:02:03:04:05:06:07:08`. MAC addresses remain supported, and malformed values return errors.
+- `scripts/run-bmv2.sh` uses native `simple_switch_grpc` by default and retains an explicit Docker mode. The launcher and integration harness compile paired L2 artifacts from source. The default device ID is 1 and the CPU port is 255. See [Scripts](scripts/README.md).
+- The L2 example program retains its direct counter and adds the indirect `MyIngress.pkt_counter`, indexed by egress port. L2 misses produce PacketIn messages through CPU port 255. PacketOut uses its egress metadata and removes the control header before forwarding. Examples and integration tests use the compiled P4Info names.
 - Pipeline constructors copy P4Info and device configuration. Info, Raw and resource queries return independent copies. Compare resource IDs across queries and construct a new Pipeline to use an edited P4Info. See [Pipeline ownership](pipeline/README.md).
 - Pipeline construction reports pointer cycles and malformed nil message values before copying. Ordinary type and resource validation remains with the corresponding APIs and target.
 - Metrics documentation describes the current interceptor hooks and planned built-in support. The `metrics` package remains a reserved namespace without a collector API or adapters.
+
+### Compatibility notes
+
+- `pre.Replica` now contains slices and cannot be compared with `==` or used as a map key. Compare fields and byte slices explicitly. Use keyed struct literals for `Replica` and `meter.Config`, whose field sets have grown. See [PRE](pre/README.md).
+- Canonical numeric zero is now a single `00` byte, including `codec.LPMMask` with prefix length zero. Test the prefix length to identify an LPM wildcard. `Optional(nil)` is a wildcard, while `Optional([]byte{})` explicitly matches zero.
+- `register.Reader.Write([]byte)` accepts only `bit<W>` and `int<W>`, including named types resolving to them. Signed values use big-endian two's complement. Use `WriteData` for other types. See [Register values](register/README.md).
+- Negative meter values, including the target-specific `-1` convention, are rejected. Use `Reset` for default GREEN behavior. An explicit zero configuration remains distinct from reset. See [Meter configuration](meter/README.md).
 
 ## [1.1.0] - 2026-04-21
 
