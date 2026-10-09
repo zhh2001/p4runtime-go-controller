@@ -2,6 +2,8 @@
 
 This guide covers installing the SDK, starting a local BMv2 target and writing your first table entry.
 
+For an existing v1 application, start with the [v2 migration guide](migration-v2.md).
+
 ## 1. Install
 
 Use Go 1.26 or newer. This guide uses the v2 SDK. Before the first v2 release, use a checkout whose `go.mod` declares `github.com/zhh2001/p4runtime-go-controller/v2`.

@@ -96,6 +96,7 @@ This is the protocol baseline. Optional resources and newer fields require targe
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — layered design and data-flow.
 - [`docs/quickstart.md`](docs/quickstart.md) — run your first controller.
+- [Migrating from v1 to v2](docs/migration-v2.md).
 - [`docs/troubleshooting.md`](docs/troubleshooting.md) — common issues.
 - [`docs/observability.md`](docs/observability.md) — logging and instrumentation hooks.
 - [`docs/glossary.md`](docs/glossary.md) — P4, P4Runtime, PDPI, pipeline, etc.

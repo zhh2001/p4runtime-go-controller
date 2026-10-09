@@ -105,6 +105,7 @@ Meter 写入会按 P4Info 校验类型，速率和突发量必须非负。`EBurs
 
 - [`ARCHITECTURE.md`](../../ARCHITECTURE.md)：分层设计、数据流与架构决策。
 - [`docs/quickstart.md`](../quickstart.md)：快速上手。
+- [v1 到 v2 升级指南](../migration-v2.md)：模块路径、源码和行为变化。
 - [`docs/troubleshooting.md`](../troubleshooting.md)：常见问题。
 - [`docs/observability.md`](../observability.md)：日志配置与采集入口。
 - [`docs/glossary.md`](../glossary.md)：术语表。

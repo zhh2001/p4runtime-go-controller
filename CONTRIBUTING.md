@@ -82,3 +82,5 @@ See the [Code of Conduct](CODE_OF_CONDUCT.md) for expected behavior in all proje
 ## Releases
 
 See the [release guide](docs/releases.md) for version selection, local release validation and the tagged draft-release workflow. This branch uses the `/v2` module path. SDK imports must use that prefix, and release tags must be in the v2 series.
+
+Keep the [v2 migration guide](docs/migration-v2.md) current when changing public APIs or behavior. Verify its examples from an application outside this module as part of release preparation.

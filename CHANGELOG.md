@@ -10,6 +10,7 @@ Published releases follow the Go 1 source compatibility policy within a major ve
 
 ### Added
 
+- A [v1 to v2 migration guide](docs/migration-v2.md) covering application dependencies, source changes, behavior checks and CLI automation. The release guide also distinguishes SDK tags, draft releases and CLI archive installations.
 - `client.Client.CloseGracefully(ctx)` drains accepted stream sends, half-closes StreamChannel and waits for the target's final RPC status. It releases the connection on success, error or timeout. Use a deadline and call it outside stream handlers.
 - `errors.WriteError` preserves the original gRPC status and complete per-update results in request order, including successful updates. Use the standard library's `errors.As` to inspect `Updates` before retrying a partially successful batch. Its `errors.Is` matches any failed update. `Updates` is nil when the response lacks valid, complete results.
 - `tableentry.Builder.BuildKey()` builds table keys without requiring an action. It includes table ID, matches, priority and the default-entry flag. CLI table deletion uses this key without an action.
