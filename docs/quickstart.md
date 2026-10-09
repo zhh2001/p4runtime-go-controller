@@ -4,7 +4,7 @@ This guide covers installing the SDK, starting a local BMv2 target and writing y
 
 ## 1. Install
 
-Use Go 1.25 or newer. Add the SDK from your application's Go module. If you are starting a new project, create its directory and run `go mod init example.com/p4-controller` there first.
+Use Go 1.26 or newer. Add the SDK from your application's Go module. If you are starting a new project, create its directory and run `go mod init example.com/p4-controller` there first.
 
 ```sh
 go get github.com/zhh2001/p4runtime-go-controller@latest

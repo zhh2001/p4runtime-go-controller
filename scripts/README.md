@@ -10,7 +10,7 @@ All three BMv2 helpers use Bash. Compilation needs `p4c-bm2-ss` with v1model sup
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `run-bmv2.sh` (native, the default) | Local `simple_switch_grpc` on `PATH`, or an executable selected by `SIMPLE_SWITCH_GRPC`.                                   |
 | `run-bmv2.sh --docker`              | An accessible Docker daemon and an image containing `simple_switch_grpc`. Compilation uses the local compiler.             |
-| `test-bmv2.sh`                      | Go 1.25 or newer, CGO and a supported C compiler for race detection, plus a running target. Make is needed for `make e2e`. |
+| `test-bmv2.sh`                      | Go 1.26 or newer, CGO and a supported C compiler for race detection, plus a running target. Make is needed for `make e2e`. |
 
 The test script can use an existing P4Info and JSON pair through `P4RT_P4INFO` and `P4RT_DEVICE_CONFIG`, as described below. In that case it uses those files directly. Set `GO` to select the Go executable for the test script.
 

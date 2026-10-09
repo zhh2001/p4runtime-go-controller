@@ -14,6 +14,7 @@ Starting with `v1.0.0` the public API follows the Go 1 compatibility promise; ev
 
 ### Changed
 
+- Updated grpc-go to 1.83.2 and x/net to 0.60.0. Go 1.26 is now the minimum version, and Go 1.26.9 is the preferred toolchain.
 - Pipeline constructors copy P4Info and device configuration. Info, Raw and resource queries return independent copies. Compare resource IDs across queries and construct a new Pipeline to use an edited P4Info. See [Pipeline ownership](pipeline/README.md).
 - Pipeline construction reports pointer cycles and malformed nil message values before copying. Ordinary type and resource validation remains with the corresponding APIs and target.
 - Metrics documentation describes the current interceptor hooks and planned built-in support. The `metrics` package remains a reserved namespace without a collector API or adapters.

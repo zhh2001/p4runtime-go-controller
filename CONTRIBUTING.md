@@ -4,7 +4,7 @@ Contributions are welcome. This document describes the workflow.
 
 ## Prerequisites
 
-- Go 1.25 or newer. `go.mod` declares the minimum version and preferred toolchain.
+- Go 1.26 or newer. `go.mod` declares the minimum version and preferred toolchain.
 - Git and Make for the commands below.
 - `golangci-lint` v2.14.0, `govulncheck`, and `shellcheck` for lint gates. Install the linter from the [official releases](https://github.com/golangci/golangci-lint/releases/tag/v2.14.0).
 
@@ -24,19 +24,19 @@ make test
 
 ## Go toolchain checks
 
-The CI build matrix runs Go 1.25 and `stable` on Ubuntu, macOS and Windows. The `1.25` selector chooses a patch release in that series, which can be newer than the minimum `1.25.0` declared in `go.mod`. `stable` follows the latest stable release.
+The CI build matrix runs Go 1.26 and `stable` on Ubuntu, macOS and Windows. The `1.26` selector chooses a patch release in that series, which can be newer than the minimum `1.26.0` declared in `go.mod`. `stable` follows the latest stable release.
 
 `actions/setup-go@v6` sets `GOTOOLCHAIN=local`. Each CI job uses the installed Go toolchain without switching to the preferred toolchain in `go.mod`. The setup step prints the actual version and Go environment. Check those logs when comparing results across runs. See [Go toolchain selection](https://go.dev/doc/toolchain#go-toolchain-selection).
 
 To check the declared minimum locally, use an explicit toolchain name:
 
 ```sh
-GOTOOLCHAIN=go1.25.0 go build ./...
-GOTOOLCHAIN=go1.25.0 go vet ./...
-GOTOOLCHAIN=go1.25.0 go test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./...
+GOTOOLCHAIN=go1.26.0 go build ./...
+GOTOOLCHAIN=go1.26.0 go vet ./...
+GOTOOLCHAIN=go1.26.0 go test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./...
 ```
 
-Replace `go1.25.0` with the version shown in a CI run to reproduce that run's toolchain. A bare `go` command can switch versions because of the preferred toolchain. Adding `+auto` to an explicit name also allows switching.
+Replace `go1.26.0` with the version shown in a CI run to reproduce that run's toolchain. A bare `go` command can switch versions because of the preferred toolchain. Adding `+auto` to an explicit name also allows switching. Minimum-version checks verify compatibility. Use a current patch release for regular builds. The preferred toolchain is Go 1.26.9.
 
 ## BMv2 integration tests
 

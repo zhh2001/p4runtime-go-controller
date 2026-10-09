@@ -4,7 +4,7 @@ Installs the L2 pipeline and writes an entry forwarding destination `00:11:22:33
 
 ## Prerequisites
 
-- Use Go 1.25 or newer and run commands from the repository root.
+- Use Go 1.26 or newer and run commands from the repository root.
 - Start BMv2 with device ID 1 and CPU port 255 using `./scripts/run-bmv2.sh`. It compiles the matching L2 files used below. See [script requirements](../../scripts/README.md#requirements).
 - Binding a host-facing interface to port 1 enables forwarded traffic. See [the fixture guide](../testdata/README.md).
 

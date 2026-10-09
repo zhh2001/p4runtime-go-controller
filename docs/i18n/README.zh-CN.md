@@ -20,7 +20,7 @@
 
 ## 安装
 
-需要 Go 1.25 或更新版本。在应用的 Go 模块目录中运行：
+需要 Go 1.26 或更新版本。在应用的 Go 模块目录中运行：
 
 ```sh
 go get github.com/zhh2001/p4runtime-go-controller@latest
