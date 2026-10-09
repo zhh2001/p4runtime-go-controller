@@ -12,15 +12,19 @@ body:
     id: version
     attributes:
       label: Library / CLI version
-      description: Output of `go list -m github.com/zhh2001/p4runtime-go-controller` or `p4ctl --version`.
-      placeholder: v0.x.y
+      description: >
+        For v2, run `go list -m github.com/zhh2001/p4runtime-go-controller/v2`.
+        For v1, use the module path without `/v2`. For the CLI, run `p4ctl version`.
+        If it reports dev, also include `go version -m /absolute/path/to/p4ctl`.
+      placeholder: v1.1.1 or a v2 tag, commit, or local replacement
     validations:
       required: true
   - type: input
     id: go_version
     attributes:
       label: Go version
-      placeholder: go1.23.0 linux/amd64
+      description: Output of `go version`.
+      placeholder: go1.26.9 linux/amd64
     validations:
       required: true
   - type: input

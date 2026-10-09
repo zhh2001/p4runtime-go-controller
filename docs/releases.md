@@ -17,7 +17,7 @@ Applications upgrading from v1.1.1 should follow the [v2 migration guide](migrat
 Before creating a release tag:
 
 1. Choose a v2 version that matches the public API changes. Check that `go.mod`, imports and external consumers use the `/v2` module path.
-2. Move the relevant Unreleased notes into a dated version section in CHANGELOG. Include migration instructions for incompatible changes.
+2. Move the relevant Unreleased notes into a dated version section in CHANGELOG. Include migration instructions for incompatible changes and check the [security support policy](../SECURITY.md#supported-versions). Publishing a prerelease in a new major version also advances the security support window.
 3. Complete the build, vet, race, lint and module checks in [CONTRIBUTING](../CONTRIBUTING.md), including applicable BMv2 tests. Verify the [migration guide](migration-v2.md) with an external application and check its documented CLI commands.
 4. Validate the release configuration and build a local snapshot. Check every configured platform, the version output, archives, SBOMs and checksums.
 

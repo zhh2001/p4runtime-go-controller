@@ -25,6 +25,7 @@ Published releases follow the Go 1 source compatibility policy within a major ve
 
 ### Changed
 
+- Security maintenance covers the two most recent published minor lines within the latest published major. Prereleases count toward that window, so the first published v2 prerelease ends v1 security maintenance. Development branches and draft releases do not advance it. Issue reports now request the v2 module path and the CLI version subcommand, with Go build information for source installations.
 - The module path, SDK imports, tests and examples now use `github.com/zhh2001/p4runtime-go-controller/v2`. Published v1 tags retain the unsuffixed path. Before the first v2 release, applications can use a local checkout through a replace directive. See [Quickstart](docs/quickstart.md#1-install).
 - Release tags use the v2 series, and local snapshots use a `2.0.0-SNAPSHOT` version label even while the latest existing tag is v1.
 - GoReleaser keeps scoped and unscoped `feat!`, `fix!` and `docs!` subjects in their corresponding release-note groups.
