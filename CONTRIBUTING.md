@@ -20,6 +20,22 @@ make test
 
 `make lint` uses Go 1.27.1, matching the lint job in CI. Go downloads that toolchain when needed. Update the Go and linter versions together when changing the lint configuration.
 
+## Go toolchain checks
+
+The CI build matrix runs Go 1.25 and `stable` on Ubuntu, macOS and Windows. The `1.25` selector chooses a patch release in that series, which can be newer than the minimum `1.25.0` declared in `go.mod`. `stable` follows the latest stable release.
+
+`actions/setup-go@v6` sets `GOTOOLCHAIN=local`. Each CI job uses the installed Go toolchain without switching to the preferred toolchain in `go.mod`. The setup step prints the actual version and Go environment. Check those logs when comparing results across runs. See [Go toolchain selection](https://go.dev/doc/toolchain#go-toolchain-selection).
+
+To check the declared minimum locally, use an explicit toolchain name:
+
+```sh
+GOTOOLCHAIN=go1.25.0 go build ./...
+GOTOOLCHAIN=go1.25.0 go vet ./...
+GOTOOLCHAIN=go1.25.0 go test -race -covermode=atomic -coverpkg=./... -coverprofile=coverage.out ./...
+```
+
+Replace `go1.25.0` with the version shown in a CI run to reproduce that run's toolchain. A bare `go` command can switch versions because of the preferred toolchain. Adding `+auto` to an explicit name also allows switching.
+
 ## Workflow
 
 1. Open an issue before starting non-trivial work so the design can be agreed on first.
