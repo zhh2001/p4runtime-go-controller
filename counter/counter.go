@@ -7,6 +7,7 @@ import (
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
+	"github.com/zhh2001/p4runtime-go-controller/internal/resourceindex"
 	"github.com/zhh2001/p4runtime-go-controller/pipeline"
 )
 
@@ -33,12 +34,16 @@ func NewReader(c *client.Client, p *pipeline.Pipeline) (*Reader, error) {
 	return &Reader{c: c, p: p}, nil
 }
 
-// Read returns all indexes for the named counter. index=-1 reads every
-// entry; a non-negative value reads a single entry.
+// Read returns samples for the named counter. index=-1 reads every entry.
+// Other indexes must be non-negative and within the array size, unless the
+// counter declares a named index type for target-side translation.
 func (r *Reader) Read(ctx context.Context, name string, index int64) ([]*Data, error) {
 	cdef, ok := r.p.Counter(name)
 	if !ok {
 		return nil, fmt.Errorf("counter %q not in pipeline", name)
+	}
+	if err := resourceindex.Validate(index, cdef.Size, cdef.Raw().GetIndexTypeName().GetName(), true); err != nil {
+		return nil, fmt.Errorf("counter %q: %w", name, err)
 	}
 	entry := &p4v1.CounterEntry{CounterId: cdef.ID}
 	if index >= 0 {
@@ -70,10 +75,15 @@ func (r *Reader) Read(ctx context.Context, name string, index int64) ([]*Data, e
 
 // Write sets the counter data at a specific index. Some targets do not
 // support counter writes; those will return ErrTargetUnsupported.
+// The index must be non-negative and within the array size, unless the counter
+// declares a named index type for target-side translation.
 func (r *Reader) Write(ctx context.Context, name string, index int64, packets, bytes int64) error {
 	cdef, ok := r.p.Counter(name)
 	if !ok {
 		return fmt.Errorf("counter %q not in pipeline", name)
+	}
+	if err := resourceindex.Validate(index, cdef.Size, cdef.Raw().GetIndexTypeName().GetName(), false); err != nil {
+		return fmt.Errorf("counter %q: %w", name, err)
 	}
 	update := &p4v1.Update{
 		Type: p4v1.Update_MODIFY,

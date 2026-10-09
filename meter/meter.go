@@ -7,6 +7,7 @@ import (
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
+	"github.com/zhh2001/p4runtime-go-controller/internal/resourceindex"
 	"github.com/zhh2001/p4runtime-go-controller/pipeline"
 )
 
@@ -33,11 +34,15 @@ func NewReader(c *client.Client, p *pipeline.Pipeline) (*Reader, error) {
 }
 
 // Read returns the meter configuration at the given index. Pass index=-1 to
-// read every index.
+// read every index. Other indexes must be non-negative and within the array
+// size, unless the meter declares a named index type for target-side translation.
 func (r *Reader) Read(ctx context.Context, name string, index int64) ([]*p4v1.MeterEntry, error) {
 	mdef, ok := r.p.Meter(name)
 	if !ok {
 		return nil, fmt.Errorf("meter %q not in pipeline", name)
+	}
+	if err := resourceindex.Validate(index, mdef.Size, mdef.Raw().GetIndexTypeName().GetName(), true); err != nil {
+		return nil, fmt.Errorf("meter %q: %w", name, err)
 	}
 	entry := &p4v1.MeterEntry{MeterId: mdef.ID}
 	if index >= 0 {
@@ -56,11 +61,16 @@ func (r *Reader) Read(ctx context.Context, name string, index int64) ([]*p4v1.Me
 	return out, nil
 }
 
-// Write sets the meter configuration at index.
+// Write sets the meter configuration at index. The index must be non-negative
+// and within the array size, unless the meter declares a named index type for
+// target-side translation.
 func (r *Reader) Write(ctx context.Context, name string, index int64, cfg Config) error {
 	mdef, ok := r.p.Meter(name)
 	if !ok {
 		return fmt.Errorf("meter %q not in pipeline", name)
+	}
+	if err := resourceindex.Validate(index, mdef.Size, mdef.Raw().GetIndexTypeName().GetName(), false); err != nil {
+		return fmt.Errorf("meter %q: %w", name, err)
 	}
 	update := &p4v1.Update{
 		Type: p4v1.Update_MODIFY,

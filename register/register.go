@@ -7,6 +7,7 @@ import (
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
+	"github.com/zhh2001/p4runtime-go-controller/internal/resourceindex"
 	"github.com/zhh2001/p4runtime-go-controller/pipeline"
 )
 
@@ -25,11 +26,16 @@ func NewReader(c *client.Client, p *pipeline.Pipeline) (*Reader, error) {
 }
 
 // Read returns the register entry at index; pass index=-1 to read every
-// index. The returned slices contain the raw P4Data messages.
+// index. Other indexes must be non-negative and within the array size, unless
+// the register declares a named index type for target-side translation.
+// Entries contain the raw P4Data messages.
 func (r *Reader) Read(ctx context.Context, name string, index int64) ([]*p4v1.RegisterEntry, error) {
 	rdef, ok := r.p.Register(name)
 	if !ok {
 		return nil, fmt.Errorf("register %q not in pipeline", name)
+	}
+	if err := resourceindex.Validate(index, int64(rdef.Size), rdef.Raw().GetIndexTypeName().GetName(), true); err != nil {
+		return nil, fmt.Errorf("register %q: %w", name, err)
 	}
 	entry := &p4v1.RegisterEntry{RegisterId: rdef.ID}
 	if index >= 0 {
@@ -49,10 +55,15 @@ func (r *Reader) Read(ctx context.Context, name string, index int64) ([]*p4v1.Re
 }
 
 // Write stores the canonical-byte value at the given index of register.
+// The index must be non-negative and within the array size, unless the register
+// declares a named index type for target-side translation.
 func (r *Reader) Write(ctx context.Context, name string, index int64, value []byte) error {
 	rdef, ok := r.p.Register(name)
 	if !ok {
 		return fmt.Errorf("register %q not in pipeline", name)
+	}
+	if err := resourceindex.Validate(index, int64(rdef.Size), rdef.Raw().GetIndexTypeName().GetName(), false); err != nil {
+		return fmt.Errorf("register %q: %w", name, err)
 	}
 	update := &p4v1.Update{
 		Type: p4v1.Update_MODIFY,

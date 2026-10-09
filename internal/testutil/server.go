@@ -35,6 +35,7 @@ type MockServer struct {
 	PrimaryElectionLow     uint64
 	ArbitrationEchoed      int
 	WriteRequests          []*p4v1.WriteRequest
+	ReadRequests           []*p4v1.ReadRequest
 	LastCapabilitiesReq    *p4v1.CapabilitiesRequest
 	SetPipelineReq         *p4v1.SetForwardingPipelineConfigRequest
 	SetPipelineRequests    []*p4v1.SetForwardingPipelineConfigRequest
@@ -216,9 +217,10 @@ func (m *MockServer) GetForwardingPipelineConfig(_ context.Context, req *p4v1.Ge
 	return &p4v1.GetForwardingPipelineConfigResponse{}, nil
 }
 
-// Read streams back the configured responses (from OverrideReadResp).
-func (m *MockServer) Read(_ *p4v1.ReadRequest, stream p4v1.P4Runtime_ReadServer) error {
+// Read records the request and streams the configured responses.
+func (m *MockServer) Read(req *p4v1.ReadRequest, stream p4v1.P4Runtime_ReadServer) error {
 	m.Mu.Lock()
+	m.ReadRequests = append(m.ReadRequests, req)
 	resp := append([]*p4v1.ReadResponse(nil), m.OverrideReadResp...)
 	m.Mu.Unlock()
 	for _, r := range resp {

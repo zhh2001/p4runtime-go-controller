@@ -134,6 +134,8 @@ The table entry builder encodes match fields and action parameters before a writ
 
 `pipeline.Pipeline` keeps P4Info indexes for lookups by name and ID. The device configuration remains an opaque blob and is passed to the target unchanged.
 
+Counter, meter and register readers accept `-1` to read the whole array. Other reads and all writes require a non-negative index. For ordinary indexes, the SDK checks the array size in P4Info before making an RPC. When `index_type_name` names a type, the target checks the index after any required translation. The SDK sends that non-negative value unchanged.
+
 The `pre` package preserves the replica port's wire representation. Legacy `EgressPort` values use the uint32 field. `Port` holds opaque bytes, including translated port names and values wider than uint32. Reads retain the selected field, and read-modify-write retains backup replicas in order. Target support determines which port fields and backup configurations can be used. See [Packet replication](pre/README.md) for validation and caller migration.
 
 ### Logging and tracing

@@ -132,6 +132,24 @@ go test -race -tags=integration -count=3 -v \
 
 Both pipeline paths and the CLI binary are required. With neither pipeline path set, the test is skipped. It installs its pipeline on the selected plaintext target with device ID 1. The 128-bit LPM field is byte-aligned and does not use the 9-bit LPM cases described above.
 
+## Resource indexes
+
+`TestBMv2_ResourceIndexes` uses four-entry counter, meter and register arrays from `testdata/resources.p4`. It checks that invalid indexes return locally without an RPC, writes and reads indexes 0 and 3, and verifies that `-1` reads every entry. Compile the matching pipeline pair from the repository root:
+
+```bash
+mkdir -p /tmp/p4runtime-integration/resources
+p4c-bm2-ss --arch v1model \
+  --p4runtime-files /tmp/p4runtime-integration/resources/resources.p4info.txtpb \
+  -o /tmp/p4runtime-integration/resources/resources.json \
+  test/integration/testdata/resources.p4
+P4RT_RESOURCE_P4INFO=/tmp/p4runtime-integration/resources/resources.p4info.txtpb \
+P4RT_RESOURCE_DEVICE_CONFIG=/tmp/p4runtime-integration/resources/resources.json \
+go test -race -tags=integration -count=3 -v \
+  -run '^TestBMv2_ResourceIndexes$' ./test/integration/...
+```
+
+Set both pipeline paths to run this test. It installs its pipeline on the selected target. Some PI versions do not implement RegisterEntry RPCs. In that case, the test checks the target's unsupported response and skips valid register reads and writes. Invalid register indexes still undergo local validation. SDK tests against a controlled server cover valid register requests and preservation of named indexes above the physical array size. This live test does not establish support for index translation.
+
 ## Packet replication
 
 `TestBMv2_PRE` uses the bundled L2 pipeline to insert, read, modify and delete multicast groups and clone sessions. It checks legacy ports, byte ports with leading zeros and mixed replica sets. It also modifies entries directly from their read results. Run it on a target with device ID 1:

@@ -60,6 +60,8 @@ func main() {
 
 更多端到端示例见 [`examples/`](../../examples) 目录，涵盖连接、管线下发、L2 学习交换机、Packet I/O 以及计数器读取。
 
+Counter、Meter 和 Register 的读取接口只用 `-1` 表示读取整个数组，写入必须指定非负索引。普通索引会在发送请求前按 P4Info 的数组大小校验。声明了 `index_type_name` 的索引由目标在转换后检查，SDK 保留其非负原值。
+
 ## 功能矩阵
 
 | 能力                                                 | 状态           |
