@@ -13,7 +13,7 @@ A production-grade Go SDK for writing P4Runtime controllers.
 
 - Works against any P4Runtime 1.3.0+ target (BMv2, Stratum, Tofino-based switches, custom ASIC agents).
 - Zero hard dependency beyond `google.golang.org/grpc`, `google.golang.org/protobuf`, and the official P4Runtime proto stubs.
-- Structured logging through `log/slog`, pluggable metrics, pluggable tracing.
+- Structured logging through `log/slog` and gRPC interceptor hooks for application metrics and tracing. Built-in metrics and adapters are planned. See [Observability](docs/observability.md).
 
 > The public API is stable as of `v1.0.0` and follows the [Go 1 compatibility promise](https://go.dev/doc/go1compat). Every change is documented in the [CHANGELOG](CHANGELOG.md).
 
@@ -72,6 +72,8 @@ See [`examples/`](examples/) for full end-to-end walkthroughs, including connect
 | Digest subscribe and ack                                                        | ready        |
 | Packet Replication Engine (multicast groups, clone sessions)                    | ready (v1.1) |
 | Reference CLI (`p4ctl`)                                                         | ready        |
+| Structured stream lifecycle logging (`log/slog`)                                | ready        |
+| Built-in metrics collection                                                     | planned      |
 | Prometheus adapter                                                              | planned      |
 | OpenTelemetry gRPC interceptors                                                 | planned      |
 
@@ -86,6 +88,7 @@ See [`examples/`](examples/) for full end-to-end walkthroughs, including connect
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — layered design and data-flow.
 - [`docs/quickstart.md`](docs/quickstart.md) — run your first controller.
 - [`docs/troubleshooting.md`](docs/troubleshooting.md) — common issues.
+- [`docs/observability.md`](docs/observability.md) — logging and instrumentation hooks.
 - [`docs/glossary.md`](docs/glossary.md) — P4, P4Runtime, PDPI, pipeline, etc.
 - [`docs/i18n/README.zh-CN.md`](docs/i18n/README.zh-CN.md) — 中文版本。
 

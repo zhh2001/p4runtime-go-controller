@@ -38,6 +38,8 @@ The L2 tests also check duplicate inserts, missing-entry modifications and delet
 
 `TestBMv2_PipelineOwnership` uses the bundled L2 pair. It changes the constructor inputs, Info, Raw and separately retrieved definitions before installing the Pipeline. It reads back the original P4Info and device configuration, then inserts, reads and deletes an entry through a builder created before those edits. Run it with `./scripts/test-bmv2.sh -count=3 -v -run '^TestBMv2_PipelineOwnership$'`. Controlled gRPC tests also check the typed resource and stream requests after external edits, while SDK race tests cover concurrent snapshot access.
 
+`TestBMv2_StreamLogging` supplies a JSON logger through `WithLogger`, interrupts the first StreamChannel RPC through a stream interceptor, and waits for the SDK to reconnect and become primary again. It checks opening attempts, failure stages, arbitration and shutdown logs, including the configured logger attributes. The target stays running. Run it with `./scripts/test-bmv2.sh -count=3 -v -run '^TestBMv2_StreamLogging$'`. Controlled stream tests cover opening and arbitration failures, jittered delays, logging levels and normal shutdown.
+
 To check queries and writes before pipeline installation, start a fresh target and run these tests separately, before the rest of the suite:
 
 ```bash

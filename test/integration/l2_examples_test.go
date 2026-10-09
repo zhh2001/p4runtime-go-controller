@@ -59,14 +59,19 @@ func TestBMv2_L2Examples(t *testing.T) {
 		}
 	}()
 	waitLine := func(want string) string {
-		select {
-		case line, ok := <-lines:
-			require.True(t, ok, "packet example stopped before %q", want)
-			require.Contains(t, line, want)
-			return line
-		case <-time.After(3 * time.Second):
-			t.Fatalf("packet example did not print %q", want)
-			return ""
+		timer := time.NewTimer(3 * time.Second)
+		defer timer.Stop()
+		for {
+			select {
+			case line, ok := <-lines:
+				require.True(t, ok, "packet example stopped before %q", want)
+				if strings.Contains(line, want) {
+					return line
+				}
+			case <-timer.C:
+				t.Fatalf("packet example did not print %q", want)
+				return ""
+			}
 		}
 	}
 	waitLine("sent demo packet")

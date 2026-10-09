@@ -158,10 +158,15 @@ func New(cfg Config, dial Dialer, onPkt PacketHandler) *Supervisor {
 		cfg.Logger = slog.Default()
 	}
 	s := &Supervisor{
-		cfg:      cfg,
-		dial:     dial,
-		onPkt:    onPkt,
-		log:      cfg.Logger,
+		cfg:   cfg,
+		dial:  dial,
+		onPkt: onPkt,
+		log: cfg.Logger.With(
+			"device_id", cfg.DeviceID,
+			"role", cfg.Role,
+			"election_id_high", cfg.ElectionHigh,
+			"election_id_low", cfg.ElectionLow,
+		),
 		state:    StateDisconnected,
 		changed:  make(chan struct{}),
 		events:   make(chan Event, 16),
@@ -343,8 +348,9 @@ func (s *Supervisor) run(parent context.Context) {
 	defer s.failPending(errStopped)
 	defer func() {
 		if s.State() != StateDisconnected {
-			s.setState(StateDisconnected, nil)
+			s.setState(parent, StateDisconnected, nil)
 		}
+		s.log.DebugContext(parent, "p4runtime: stream supervisor stopped")
 	}()
 
 	backoff := s.cfg.BackoffInitial
@@ -360,13 +366,15 @@ func (s *Supervisor) run(parent context.Context) {
 		default:
 		}
 
-		s.setState(StateConnecting, nil)
+		s.setState(parent, StateConnecting, nil)
 
 		ctx, cancel := context.WithCancel(parent)
+		s.log.InfoContext(ctx, "p4runtime: opening StreamChannel")
 		stream, err := s.dial(ctx)
 		if err != nil {
+			s.logFailure(ctx, "open", err)
 			cancel()
-			s.setState(StateDisconnected, err)
+			s.setState(parent, StateDisconnected, err)
 			if !s.sleep(parent, backoff) {
 				return
 			}
@@ -375,8 +383,9 @@ func (s *Supervisor) run(parent context.Context) {
 		}
 
 		if err := s.arbitrate(ctx, stream); err != nil {
+			s.logFailure(ctx, "arbitration", err)
 			cancel()
-			s.setState(StateDisconnected, err)
+			s.setState(parent, StateDisconnected, err)
 			if !s.sleep(parent, backoff) {
 				return
 			}
@@ -384,7 +393,7 @@ func (s *Supervisor) run(parent context.Context) {
 			continue
 		}
 
-		// Successful arbitration → reset backoff and pump the stream.
+		// Successful arbitration resets backoff before pumping the stream.
 		backoff = s.cfg.BackoffInitial
 		finished := s.serve(ctx, cancel, stream)
 		cancel()
@@ -437,7 +446,7 @@ func (s *Supervisor) arbitrate(ctx context.Context, stream p4v1.P4Runtime_Stream
 		if arb == nil {
 			return fmt.Errorf("first stream message was %T, expected arbitration", r.msg.GetUpdate())
 		}
-		s.applyArbitration(arb)
+		s.applyArbitration(ctx, arb)
 		return nil
 	}
 }
@@ -480,9 +489,10 @@ func (s *Supervisor) serve(ctx context.Context, cancel context.CancelFunc, strea
 		case <-s.stop:
 			return false
 		case arb := <-arbitration:
-			s.applyArbitration(arb)
+			s.applyArbitration(ctx, arb)
 		case err := <-recvErr:
-			s.setState(StateDisconnected, err)
+			s.logFailure(ctx, "recv", err)
+			s.setState(ctx, StateDisconnected, err)
 			s.failPending(err)
 			return false
 		case req := <-s.sendCh:
@@ -492,6 +502,9 @@ func (s *Supervisor) serve(ctx context.Context, cancel context.CancelFunc, strea
 			}
 			if req.message == nil {
 				err := s.finishStream(ctx, stream, recvErr, arbitration)
+				if err != nil {
+					s.logFailure(ctx, "close", err)
+				}
 				req.finish(err)
 				return true
 			}
@@ -512,7 +525,8 @@ func (s *Supervisor) serve(ctx context.Context, cancel context.CancelFunc, strea
 			}
 			req.finish(err)
 			if err != nil {
-				s.setState(StateDisconnected, err)
+				s.logFailure(ctx, "send", err)
+				s.setState(ctx, StateDisconnected, err)
 				s.failPending(err)
 				return false
 			}
@@ -539,7 +553,7 @@ func (s *Supervisor) finishStream(ctx context.Context, stream p4v1.P4Runtime_Str
 			}
 			return err
 		case arb := <-arbitration:
-			s.applyArbitration(arb)
+			s.applyArbitration(ctx, arb)
 		case <-ctx.Done():
 			return errStopped
 		case <-s.stop:
@@ -559,17 +573,24 @@ func (s *Supervisor) failPending(err error) {
 	}
 }
 
-func (s *Supervisor) applyArbitration(arb *p4v1.MasterArbitrationUpdate) {
+func (s *Supervisor) applyArbitration(ctx context.Context, arb *p4v1.MasterArbitrationUpdate) {
+	state := StateBackup
 	if statusOK(arb.GetStatus()) {
-		s.setState(StatePrimary, nil)
-	} else {
-		s.setState(StateBackup, nil)
+		state = StatePrimary
 	}
+	level := slog.LevelInfo
+	if s.State() == state {
+		level = slog.LevelDebug
+	}
+	s.setState(ctx, state, nil)
+	s.log.Log(ctx, level, "p4runtime: arbitration status",
+		"state", state.String(), "status_code", codes.Code(arb.GetStatus().GetCode()).String())
 }
 
-func (s *Supervisor) setState(st State, err error) {
+func (s *Supervisor) setState(ctx context.Context, st State, err error) {
 	s.mu.Lock()
-	if s.state != st {
+	previous := s.state
+	if previous != st {
 		s.state = st
 		close(s.changed)
 		s.changed = make(chan struct{})
@@ -581,14 +602,43 @@ func (s *Supervisor) setState(st State, err error) {
 	default:
 		// Drop if no reader — the latest state is always retrievable via State().
 	}
+	if previous != st {
+		s.log.DebugContext(ctx, "p4runtime: stream state changed",
+			"from", previous.String(), "state", st.String(), "error", err)
+	}
+}
+
+func (s *Supervisor) logFailure(ctx context.Context, stage string, err error) {
+	// Local cancellation is reported by the state and shutdown logs.
+	if ctx.Err() != nil {
+		return
+	}
+	select {
+	case <-s.stop:
+		return
+	default:
+	}
+	s.log.WarnContext(ctx, "p4runtime: StreamChannel failed", "stage", stage, "error", err)
 }
 
 func (s *Supervisor) sleep(ctx context.Context, d time.Duration) bool {
 	if d <= 0 {
 		return true
 	}
-	t := time.NewTimer(jitter(d))
+	if ctx.Err() != nil {
+		return false
+	}
+	select {
+	case <-s.stop:
+		return false
+	case <-s.draining:
+		return false
+	default:
+	}
+	delay := jitter(d)
+	t := time.NewTimer(delay)
 	defer t.Stop()
+	s.log.DebugContext(ctx, "p4runtime: StreamChannel retry scheduled", "delay", delay)
 	select {
 	case <-t.C:
 		return true

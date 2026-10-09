@@ -24,7 +24,7 @@ comment:
 
 # Files and directories below are excluded from the coverage denominator.
 # They are either executed end-to-end via integration tests (cmd/, examples/),
-# are pure interface / doc declarations (metrics/, **/doc.go), or are test
+# contain only package documentation (metrics/, **/doc.go), or are test
 # support code that covers itself (internal/testutil/, test/).
 ignore:
   - "cmd/**"

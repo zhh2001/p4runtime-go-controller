@@ -148,7 +148,7 @@ func TestSupervisorSendRejectsNilAndBackup(t *testing.T) {
 			return nil
 		}, nil, nil)
 		require.ErrorContains(t, s.Send(context.Background(), nil), "nil request")
-		s.setState(StateBackup, nil)
+		s.setState(context.Background(), StateBackup, nil)
 		require.ErrorIs(t, s.Send(context.Background(), sendPacket(1)), errs.ErrNotPrimary)
 		s.Close()
 		require.ErrorIs(t, s.CloseGracefully(context.Background()), errStopped)

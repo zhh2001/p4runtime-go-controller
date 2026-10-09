@@ -160,7 +160,10 @@ func WithStreamInterceptor(ic grpc.StreamClientInterceptor) Option {
 }
 
 // WithLogger sets the slog.Logger used by the client and stream supervisor.
-// The zero value falls back to slog.Default.
+// The default is slog.Default. Passing nil leaves the current logger unchanged.
+// Stream attempts and mastership changes use INFO, failures use WARN, and
+// retry delays and shutdown use DEBUG. Handlers run synchronously and must
+// return promptly without calling Close or CloseGracefully on this client.
 func WithLogger(l *slog.Logger) Option {
 	return func(o *options) {
 		if l != nil {

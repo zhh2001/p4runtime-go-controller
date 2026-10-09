@@ -1,7 +1,7 @@
-// Package metrics defines the pluggable observability surface for the SDK.
-// Core packages emit counters and histograms through the Metrics interface.
-// A no-op implementation is provided for users that do not opt in.
+// Package metrics reserves a namespace for future metrics support.
+// It currently provides no collector interface, emitted measurements or adapters.
 //
-// Prometheus and OpenTelemetry adapters live in dedicated sub-packages so
-// the core library retains zero hard dependency on them.
+// Applications can instrument RPCs with client.WithUnaryInterceptor and
+// client.WithStreamInterceptor, and observe session state with Client.State
+// and Client.Events. Prometheus and OpenTelemetry adapters are planned.
 package metrics

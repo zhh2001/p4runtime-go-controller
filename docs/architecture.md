@@ -11,7 +11,7 @@ client                       — public long-lived session
 ├── packetio                  — PacketIn/PacketOut wrapper
 ├── digest                    — digest subscribe + ack
 ├── counter / meter / register — typed data-plane read/write
-├── metrics                   — pluggable observability surface
+├── metrics                   — reserved for future metrics support
 ├── errors                    — sentinel errors
 └── internal/
     ├── codec                 — canonical bytes + codec helpers
@@ -52,7 +52,9 @@ Dependencies flow top-down. `internal/*` never imports anything higher in the st
       reconnect (exponential backoff)  ------------->+
 ```
 
-Reconnect backoff is `initial * 2^k` up to `max`, with ±20 % jitter applied to each sleep so concurrent supervisors de-synchronize.
+Failed stream creation and arbitration use backoff of `initial * 2^k` up to `max`, with ±20 % jitter applied to each sleep. An established stream that fails starts the next attempt immediately. Successful arbitration resets the backoff.
+
+The supervisor logs each StreamChannel opening attempt and mastership change at INFO, failures at WARN, and the actual retry delay and normal shutdown at DEBUG. These attempts are separate from gRPC's internal transport connection retries. See [Observability](observability.md).
 
 `BecomePrimary` reads the current state and its change notification under the same lock. A state transition wakes every waiter, which then checks the current state again. The public `Events` queue serves observers separately, so event consumption and buffer limits do not affect primary waits.
 

@@ -8,7 +8,7 @@ The target did not respond to the initial `MasterArbitrationUpdate` within the a
 - Another controller owns the primary election with a higher election ID — you are connected but backup; inspect `c.State()` to confirm.
 - TLS mismatch: you dialed with `WithInsecure()` but the server requires TLS, or vice versa.
 
-Bump the timeout with `client.WithArbitrationTimeout(30 * time.Second)` and re-check logs at `INFO` level — the supervisor logs every connection attempt.
+Bump the timeout with `client.WithArbitrationTimeout(30 * time.Second)` and inspect INFO logs for StreamChannel opening attempts and mastership changes. WARN logs identify failures during opening, arbitration, receive, send or graceful close. Enable DEBUG through `client.WithLogger` to see the actual retry delay and shutdown. Stream opening attempts are separate from gRPC's internal transport retries. See [Observability](observability.md) for configuration.
 
 ## `ErrNotPrimary` on Write / SetPipeline
 

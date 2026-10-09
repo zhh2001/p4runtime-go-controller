@@ -14,7 +14,7 @@
 
 - 兼容任意 P4Runtime 1.3.0+ 目标设备（BMv2、Stratum、基于 Tofino 的交换机、自定义 ASIC 代理等）。
 - 除了 `google.golang.org/grpc`、`google.golang.org/protobuf` 和官方 P4Runtime proto stubs，核心包无额外硬依赖。
-- 通过 `log/slog` 输出结构化日志，度量与链路追踪均可插拔。
+- 通过 `log/slog` 输出结构化日志，应用可通过 gRPC 拦截器接入度量和链路追踪。内置 metrics 接口及适配器仍在规划中。详见 [日志与度量](../observability.md)。
 
 > 自 `v1.0.0` 起，公共 API 遵循 [Go 1 兼容性承诺](https://go.dev/doc/go1compat)。任何破坏性变更都会记录在 [CHANGELOG](../../CHANGELOG.md) 中。
 
@@ -81,6 +81,8 @@ Meter 写入会按 P4Info 校验类型，速率和突发量必须非负。`EBurs
 | PacketIn / PacketOut                                 | 已就绪         |
 | Digest 订阅与 Ack                                    | 已就绪         |
 | PRE（组播组 / 克隆会话）                             | 已就绪（v1.1） |
+| 流生命周期结构化日志（`log/slog`）                   | 已就绪         |
+| 内置 metrics 采集                                    | 规划中         |
 | Prometheus 适配器                                    | 规划中         |
 | OpenTelemetry gRPC 拦截器示例                        | 规划中         |
 
@@ -95,6 +97,7 @@ Meter 写入会按 P4Info 校验类型，速率和突发量必须非负。`EBurs
 - [`ARCHITECTURE.md`](../../ARCHITECTURE.md)：分层设计、数据流与架构决策。
 - [`docs/quickstart.md`](../quickstart.md)：快速上手。
 - [`docs/troubleshooting.md`](../troubleshooting.md)：常见问题。
+- [`docs/observability.md`](../observability.md)：日志配置与采集入口。
 - [`docs/glossary.md`](../glossary.md)：术语表。
 
 ## 安全

@@ -63,10 +63,13 @@ func TestBMv2_TableValues(t *testing.T) {
 				command.Env = append(command.Env, env)
 			}
 		}
-		var output bytes.Buffer
-		command.Stdout, command.Stderr = &output, &output
+		var stdout, stderr bytes.Buffer
+		command.Stdout, command.Stderr = &stdout, &stderr
 		err := command.Run()
-		return output.Bytes(), err
+		if err != nil {
+			return append(stdout.Bytes(), stderr.Bytes()...), err
+		}
+		return stdout.Bytes(), nil
 	}
 	read := func(t *testing.T, table string) []*p4v1.TableEntry {
 		t.Helper()

@@ -8,10 +8,15 @@ Starting with `v1.0.0` the public API follows the Go 1 compatibility promise; ev
 
 ## [Unreleased]
 
+### Added
+
+- StreamChannel logging through the configured `slog.Logger`, covering opening attempts, mastership changes, failures, retry delays and shutdown. See [Observability](docs/observability.md).
+
 ### Changed
 
 - Pipeline constructors copy P4Info and device configuration. Info, Raw and resource queries return independent copies. Compare resource IDs across queries and construct a new Pipeline to use an edited P4Info. See [Pipeline ownership](pipeline/README.md).
 - Pipeline construction reports pointer cycles and malformed nil message values before copying. Ordinary type and resource validation remains with the corresponding APIs and target.
+- Metrics documentation describes the current interceptor hooks and planned built-in support. The `metrics` package remains a reserved namespace without a collector API or adapters.
 
 ## [1.1.0] - 2026-04-21
 

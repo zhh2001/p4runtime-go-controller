@@ -11,7 +11,7 @@ flowchart TD
         app --> api[Public API: client / pipeline / tableentry / packetio / digest / counter / meter / register / pre]
     end
 
-    api --> obs[Observability: metrics / tracing / log/slog]
+    api --> obs[Observability: log/slog / gRPC interceptor hooks]
     api --> codec[internal/codec: canonical bytes]
     api --> stream[internal/stream: StreamChannel supervisor]
 
@@ -146,7 +146,9 @@ The `pre` package preserves the replica port's wire representation. Legacy `Egre
 
 ### Logging and tracing
 
-Logging uses `log/slog`. Callers can provide a logger and gRPC interceptors through client options. Tracing integrations can use those interceptors without adding a tracing dependency to the core library.
+Logging uses `log/slog`, configured through `client.WithLogger`. Stream attempts and mastership changes use INFO. Stream failures use WARN, while retry delays, state transitions and normal shutdown use DEBUG. The default logger is `slog.Default`.
+
+Applications can instrument gRPC through `WithUnaryInterceptor` and `WithStreamInterceptor`. The `metrics` package is reserved for future support and has no collector interface or adapters. See [Observability](docs/observability.md) for log fields, interceptor scope and event delivery limits.
 
 ### Election IDs
 
