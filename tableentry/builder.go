@@ -9,9 +9,9 @@ import (
 	p4configv1 "github.com/p4lang/p4runtime/go/p4/config/v1"
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
-	"github.com/zhh2001/p4runtime-go-controller/internal/codec"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/codec"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
 )
 
 // Builder is a fluent constructor for p4v1.TableEntry protos. The same

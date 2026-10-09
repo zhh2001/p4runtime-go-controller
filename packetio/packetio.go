@@ -6,9 +6,9 @@ import (
 
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	"github.com/zhh2001/p4runtime-go-controller/internal/codec"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/codec"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
 )
 
 // Subscriber couples a Client with a Pipeline so that PacketIn metadata can

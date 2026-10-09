@@ -13,9 +13,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
-	"github.com/zhh2001/p4runtime-go-controller/internal/testutil"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/testutil"
 )
 
 // dialViaHarness wires the Client through the bufconn dialer of h.

@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"strings"
 
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
 )
 
 // EncodeUint returns the canonical byte encoding of v for the given

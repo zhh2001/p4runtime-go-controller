@@ -22,9 +22,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	"github.com/zhh2001/p4runtime-go-controller/counter"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/counter"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
 )
 
 var counterUnits = []struct {

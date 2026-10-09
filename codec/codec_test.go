@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/zhh2001/p4runtime-go-controller/codec"
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
+	"github.com/zhh2001/p4runtime-go-controller/v2/codec"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
 )
 
 func TestZeroEncodings(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/zhh2001/p4runtime-go-controller/internal/testutil"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/testutil"
 )
 
 func startDialServer(t *testing.T, opts ...grpc.ServerOption) (*testutil.MockServer, string) {

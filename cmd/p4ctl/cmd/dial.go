@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
 )
 
 // dialClient uses the global flags to build a Client and waits for primary.

@@ -12,11 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	"github.com/zhh2001/p4runtime-go-controller/codec"
-	"github.com/zhh2001/p4runtime-go-controller/internal/testutil"
-	"github.com/zhh2001/p4runtime-go-controller/packetio"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/codec"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/testutil"
+	"github.com/zhh2001/p4runtime-go-controller/v2/packetio"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
 )
 
 func fixturePipeline(t *testing.T) *pipeline.Pipeline {

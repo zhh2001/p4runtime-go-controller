@@ -3,7 +3,7 @@
 [![CI](https://github.com/zhh2001/p4runtime-go-controller/actions/workflows/ci.yml/badge.svg)](https://github.com/zhh2001/p4runtime-go-controller/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/zhh2001/p4runtime-go-controller/actions/workflows/codeql.yml/badge.svg)](https://github.com/zhh2001/p4runtime-go-controller/actions/workflows/codeql.yml)
 [![codecov](https://codecov.io/gh/zhh2001/p4runtime-go-controller/branch/main/graph/badge.svg)](https://codecov.io/gh/zhh2001/p4runtime-go-controller)
-[![Go Reference](https://pkg.go.dev/badge/github.com/zhh2001/p4runtime-go-controller.svg)](https://pkg.go.dev/github.com/zhh2001/p4runtime-go-controller)
+[![Go Reference](https://pkg.go.dev/badge/github.com/zhh2001/p4runtime-go-controller/v2.svg)](https://pkg.go.dev/github.com/zhh2001/p4runtime-go-controller/v2)
 [![Go Report Card](https://goreportcard.com/badge/github.com/zhh2001/p4runtime-go-controller)](https://goreportcard.com/report/github.com/zhh2001/p4runtime-go-controller)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/zhh2001/p4runtime-go-controller)](../../go.mod)
 [![Latest Release](https://img.shields.io/github/v/release/zhh2001/p4runtime-go-controller?sort=semver)](https://github.com/zhh2001/p4runtime-go-controller/releases/latest)
@@ -16,14 +16,16 @@
 - 除了 `google.golang.org/grpc`、`google.golang.org/protobuf` 和官方 P4Runtime proto stubs，核心包无额外硬依赖。
 - 通过 `log/slog` 输出结构化日志，应用可通过 gRPC 拦截器接入度量和链路追踪。内置 metrics 接口及适配器仍在规划中。详见 [日志与度量](../observability.md)。
 
-> 已发布版本按 [Go 1 兼容性规则](https://go.dev/doc/go1compat) 保持同一主版本内的源码兼容。当前开发分支包含为下一主版本准备的变更，与 `v1.1.1` 不保持源码兼容。详见 [CHANGELOG](../../CHANGELOG.md) 和 [发布指南](../releases.md)。
+> 已发布版本按 [Go 1 兼容性规则](https://go.dev/doc/go1compat) 保持同一主版本内的源码兼容。当前分支开发 v2，与 `v1.1.1` 不保持源码兼容。详见 [CHANGELOG](../../CHANGELOG.md) 和 [发布指南](../releases.md)。
 
 ## 安装
 
-需要 Go 1.26 或更新版本。在应用的 Go 模块目录中运行：
+需要 Go 1.26 或更新版本。首个 v2 版本发布前，按 [快速上手](../quickstart.md#1-install) 使用本地源码。
+
+v2 版本发布后，在应用的 Go 模块目录中运行：
 
 ```sh
-go get github.com/zhh2001/p4runtime-go-controller@latest
+go get github.com/zhh2001/p4runtime-go-controller/v2@latest
 ```
 
 ## 快速上手
@@ -38,7 +40,7 @@ import (
     "log"
     "time"
 
-    "github.com/zhh2001/p4runtime-go-controller/client"
+    "github.com/zhh2001/p4runtime-go-controller/v2/client"
 )
 
 func main() {
@@ -92,10 +94,10 @@ Meter 写入会按 P4Info 校验类型，速率和突发量必须非负。`EBurs
 
 ## 版本兼容
 
-| 控制器版本             | P4Runtime 规范 |
-| ---------------------- | -------------- |
-| `v1.x`                 | 1.3.0+         |
-| 开发分支（下一主版本） | 1.3.0+         |
+| 控制器版本  | P4Runtime 规范 |
+| ----------- | -------------- |
+| `v1.x`      | 1.3.0+         |
+| v2 开发分支 | 1.3.0+         |
 
 这里列出的是协议基础版本。可选资源和新字段需要目标支持。PRE 的字节端口要求 P4Runtime 1.4 或更新版本，备份副本要求 1.5 或更新版本。详见 [PRE](../../pre/README.md)。
 

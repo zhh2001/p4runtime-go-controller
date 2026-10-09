@@ -14,8 +14,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
 )
 
 func TestBMv2_GetPipelineWithoutPipeline(t *testing.T) {

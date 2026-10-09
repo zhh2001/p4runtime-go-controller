@@ -14,7 +14,7 @@ import (
 	rpcstatus "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/grpc/codes"
 
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
 )
 
 // State is the observable mastership state of a P4Runtime StreamChannel.

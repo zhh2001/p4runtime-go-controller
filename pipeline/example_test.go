@@ -5,7 +5,7 @@ import (
 
 	p4configv1 "github.com/p4lang/p4runtime/go/p4/config/v1"
 
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
 )
 
 func ExampleNew() {

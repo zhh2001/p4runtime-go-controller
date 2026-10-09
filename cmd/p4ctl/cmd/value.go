@@ -7,8 +7,8 @@ import (
 	"net/netip"
 	"strings"
 
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
-	"github.com/zhh2001/p4runtime-go-controller/internal/codec"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/codec"
 )
 
 // decodeValue accepts unsigned decimal, 0x hex, colon-separated hex bytes,

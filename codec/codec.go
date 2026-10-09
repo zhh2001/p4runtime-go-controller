@@ -7,7 +7,7 @@
 package codec
 
 import (
-	internalcodec "github.com/zhh2001/p4runtime-go-controller/internal/codec"
+	internalcodec "github.com/zhh2001/p4runtime-go-controller/v2/internal/codec"
 )
 
 // EncodeUint returns the canonical byte encoding of v for the given

@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
-	"github.com/zhh2001/p4runtime-go-controller/internal/codec"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/codec"
 )
 
 func TestLPMMask_FieldAlignment(t *testing.T) {

@@ -88,7 +88,7 @@ formatters:
       simplify: true
     goimports:
       local-prefixes:
-        - github.com/zhh2001/p4runtime-go-controller
+        - github.com/zhh2001/p4runtime-go-controller/v2
   exclusions:
     generated: lax
     paths:

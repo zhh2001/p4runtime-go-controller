@@ -23,7 +23,7 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
 )
 
 type packetCommandServer struct {

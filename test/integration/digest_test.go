@@ -12,9 +12,9 @@ import (
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"github.com/stretchr/testify/require"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	"github.com/zhh2001/p4runtime-go-controller/digest"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/digest"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
 )
 
 func TestBMv2_DigestSubscriptions(t *testing.T) {

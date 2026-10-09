@@ -19,8 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
 )
 
 func TestBMv2_TableValues(t *testing.T) {

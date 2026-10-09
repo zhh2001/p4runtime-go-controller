@@ -14,8 +14,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
-	"github.com/zhh2001/p4runtime-go-controller/internal/stream"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/stream"
 )
 
 type gracefulClientStream struct {

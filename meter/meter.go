@@ -7,9 +7,9 @@ import (
 	p4configv1 "github.com/p4lang/p4runtime/go/p4/config/v1"
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	"github.com/zhh2001/p4runtime-go-controller/internal/resourceindex"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/resourceindex"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
 )
 
 // Config holds meter rates and burst sizes in the units declared by P4Info.

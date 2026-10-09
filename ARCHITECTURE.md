@@ -120,7 +120,7 @@ sequenceDiagram
 
 ### Module and API compatibility
 
-The module path is `github.com/zhh2001/p4runtime-go-controller`. Releases in the v1 series keep this path. An incompatible v2 release would use a `/v2` module path.
+The v2 module path is `github.com/zhh2001/p4runtime-go-controller/v2`. The module stays at the repository root, and all SDK packages and examples use the `/v2` import prefix. Published v1 tags retain the unsuffixed module path. Both major versions can be dependencies of the same application. See [Release preparation](docs/releases.md).
 
 ### Session ownership
 

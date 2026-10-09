@@ -17,8 +17,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	perrors "github.com/zhh2001/p4runtime-go-controller/errors"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	perrors "github.com/zhh2001/p4runtime-go-controller/v2/errors"
 )
 
 func main() {

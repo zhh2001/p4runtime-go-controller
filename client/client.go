@@ -10,8 +10,8 @@ import (
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"google.golang.org/grpc"
 
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
-	"github.com/zhh2001/p4runtime-go-controller/internal/stream"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/stream"
 )
 
 // Event mirrors stream.Event so callers never need to import the internal

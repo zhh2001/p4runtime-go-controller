@@ -11,9 +11,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/zhh2001/p4runtime-go-controller/internal/codec"
-	"github.com/zhh2001/p4runtime-go-controller/packetio"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/codec"
+	"github.com/zhh2001/p4runtime-go-controller/v2/packetio"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
 )
 
 var (

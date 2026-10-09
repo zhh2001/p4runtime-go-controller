@@ -16,12 +16,12 @@ import (
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 	"github.com/stretchr/testify/require"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	"github.com/zhh2001/p4runtime-go-controller/codec"
-	"github.com/zhh2001/p4runtime-go-controller/counter"
-	"github.com/zhh2001/p4runtime-go-controller/packetio"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
-	"github.com/zhh2001/p4runtime-go-controller/tableentry"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/codec"
+	"github.com/zhh2001/p4runtime-go-controller/v2/counter"
+	"github.com/zhh2001/p4runtime-go-controller/v2/packetio"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/tableentry"
 )
 
 type ethernetPort struct {

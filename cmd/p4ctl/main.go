@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/zhh2001/p4runtime-go-controller/cmd/p4ctl/cmd"
+	"github.com/zhh2001/p4runtime-go-controller/v2/cmd/p4ctl/cmd"
 )
 
 // version is populated at build time by goreleaser ldflags.

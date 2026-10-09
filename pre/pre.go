@@ -19,7 +19,7 @@ import (
 
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
 )
 
 // Replica is a single replica in a multicast group or clone session.

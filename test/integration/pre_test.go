@@ -10,9 +10,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
-	"github.com/zhh2001/p4runtime-go-controller/pre"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pre"
 )
 
 func TestBMv2_PRE(t *testing.T) {

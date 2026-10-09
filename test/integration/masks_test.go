@@ -13,10 +13,10 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	"github.com/zhh2001/p4runtime-go-controller/codec"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
-	"github.com/zhh2001/p4runtime-go-controller/tableentry"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/codec"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/tableentry"
 )
 
 func TestBMv2_FieldWidthMasks(t *testing.T) {

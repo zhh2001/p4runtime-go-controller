@@ -13,10 +13,10 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
-	"github.com/zhh2001/p4runtime-go-controller/tableentry"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/tableentry"
 )
 
 var (

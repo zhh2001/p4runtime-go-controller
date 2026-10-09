@@ -4,7 +4,7 @@ import (
 	stderrors "errors"
 	"fmt"
 
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
 )
 
 func ExampleErrNotPrimary() {

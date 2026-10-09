@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	"github.com/zhh2001/p4runtime-go-controller/internal/testutil"
-	"github.com/zhh2001/p4runtime-go-controller/pre"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/testutil"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pre"
 )
 
 // egressPort reads the legacy egress_port field from a wire-level Replica.

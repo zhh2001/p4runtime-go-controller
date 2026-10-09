@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
 )
 
 func TestTranslateWriteError_InvalidDetails(t *testing.T) {

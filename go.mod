@@ -1,4 +1,4 @@
-module github.com/zhh2001/p4runtime-go-controller
+module github.com/zhh2001/p4runtime-go-controller/v2
 
 go 1.26.0
 

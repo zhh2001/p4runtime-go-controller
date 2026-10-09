@@ -3,7 +3,7 @@ package codec_test
 import (
 	"testing"
 
-	"github.com/zhh2001/p4runtime-go-controller/internal/codec"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/codec"
 )
 
 func BenchmarkEncodeUint(b *testing.B) {

@@ -11,11 +11,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
-	"github.com/zhh2001/p4runtime-go-controller/internal/testutil"
-	"github.com/zhh2001/p4runtime-go-controller/packetio"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
+	"github.com/zhh2001/p4runtime-go-controller/v2/internal/testutil"
+	"github.com/zhh2001/p4runtime-go-controller/v2/packetio"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
 )
 
 func metadataClient(t *testing.T) (context.Context, *client.Client, *testutil.ServerHarness) {

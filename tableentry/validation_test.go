@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	errs "github.com/zhh2001/p4runtime-go-controller/errors"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
-	"github.com/zhh2001/p4runtime-go-controller/tableentry"
+	errs "github.com/zhh2001/p4runtime-go-controller/v2/errors"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/tableentry"
 )
 
 func validationPipeline(t *testing.T, change func(*p4configv1.Table)) *pipeline.Pipeline {

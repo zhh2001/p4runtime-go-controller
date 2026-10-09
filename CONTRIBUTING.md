@@ -81,4 +81,4 @@ See the [Code of Conduct](CODE_OF_CONDUCT.md) for expected behavior in all proje
 
 ## Releases
 
-See the [release guide](docs/releases.md) for version selection, local release validation and the tagged draft-release workflow. The current development branch is preparing the next major version. Its module path migration is still required before a release tag can be published.
+See the [release guide](docs/releases.md) for version selection, local release validation and the tagged draft-release workflow. This branch uses the `/v2` module path. SDK imports must use that prefix, and release tags must be in the v2 series.

@@ -24,7 +24,8 @@ Published releases follow the Go 1 source compatibility policy within a major ve
 
 ### Changed
 
-- Release preparation distinguishes published v1 APIs from the next major version under development. The Go module path migration must be completed before publishing that version.
+- The module path, SDK imports, tests and examples now use `github.com/zhh2001/p4runtime-go-controller/v2`. Published v1 tags retain the unsuffixed path. Before the first v2 release, applications can use a local checkout through a replace directive. See [Quickstart](docs/quickstart.md#1-install).
+- Release tags use the v2 series, and local snapshots use a `2.0.0-SNAPSHOT` version label even while the latest existing tag is v1.
 - GoReleaser keeps scoped and unscoped `feat!`, `fix!` and `docs!` subjects in their corresponding release-note groups.
 - Updated grpc-go to 1.83.2 and x/net to 0.60.0. Go 1.26 is now the minimum version, and Go 1.26.9 is the preferred toolchain.
 - `SendStreamRequest`, `SendPacketOut`, `SendDigestAck` and `packetio.Subscriber.Send` wait for gRPC send completion and return send errors to the caller. Completion does not acknowledge target processing or packet forwarding. CLI `packet send` uses graceful shutdown after sending. `Close` retains immediate shutdown and can be called from a stream handler.

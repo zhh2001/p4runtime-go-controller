@@ -4,25 +4,37 @@ This guide covers installing the SDK, starting a local BMv2 target and writing y
 
 ## 1. Install
 
-Use Go 1.26 or newer. Add the SDK from your application's Go module. If you are starting a new project, create its directory and run `go mod init example.com/p4-controller` there first.
+Use Go 1.26 or newer. This guide uses the v2 SDK. Before the first v2 release, use a checkout whose `go.mod` declares `github.com/zhh2001/p4runtime-go-controller/v2`.
+
+From your application's Go module, point Go at that checkout. If you are starting a new project, create its directory and run `go mod init example.com/p4-controller` there first. Replace the path below with the absolute path to your SDK checkout:
 
 ```sh
-go get github.com/zhh2001/p4runtime-go-controller@latest
+go mod edit -replace=github.com/zhh2001/p4runtime-go-controller/v2=/path/to/p4runtime-go-controller
+go get github.com/zhh2001/p4runtime-go-controller/v2/client
 ```
 
-If you only want the CLI:
+For the CLI, run this from the SDK checkout:
 
 ```sh
-go install github.com/zhh2001/p4runtime-go-controller/cmd/p4ctl@latest
+go install ./cmd/p4ctl
 ```
 
 Go installs `p4ctl` in `GOBIN`, or in `GOPATH/bin` when `GOBIN` is unset. Add that directory to `PATH` to run the CLI.
+
+After a v2 release is published, install it without a local replacement:
+
+```sh
+go get github.com/zhh2001/p4runtime-go-controller/v2@latest
+go install github.com/zhh2001/p4runtime-go-controller/v2/cmd/p4ctl@latest
+```
+
+If your application has the development replacement, remove it with `go mod edit -dropreplace=github.com/zhh2001/p4runtime-go-controller/v2` before fetching a published version. The v1 module path continues to select v1 releases.
 
 ## 2. Bring up BMv2
 
 The bundled scripts require a repository checkout and Bash. Native mode needs `p4c-bm2-ss` and `simple_switch_grpc` on `PATH`. See [script requirements](../scripts/README.md#requirements) for Docker and integration-test tools.
 
-Get the repository and run the following commands from its root:
+Use the same SDK checkout as in the install step. To get a checkout, run:
 
 ```sh
 git clone https://github.com/zhh2001/p4runtime-go-controller.git
@@ -61,11 +73,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zhh2001/p4runtime-go-controller/client"
-	"github.com/zhh2001/p4runtime-go-controller/codec"
-	"github.com/zhh2001/p4runtime-go-controller/packetio"
-	"github.com/zhh2001/p4runtime-go-controller/pipeline"
-	"github.com/zhh2001/p4runtime-go-controller/tableentry"
+	"github.com/zhh2001/p4runtime-go-controller/v2/client"
+	"github.com/zhh2001/p4runtime-go-controller/v2/codec"
+	"github.com/zhh2001/p4runtime-go-controller/v2/packetio"
+	"github.com/zhh2001/p4runtime-go-controller/v2/pipeline"
+	"github.com/zhh2001/p4runtime-go-controller/v2/tableentry"
 )
 
 func main() {

@@ -4,9 +4,19 @@ Reference CLI built on top of `p4runtime-go-controller`. Dogfood for the SDK and
 
 ## Install
 
+Use Go 1.26 or newer. Before the first v2 release, install from a checkout of this branch:
+
 ```sh
-go install github.com/zhh2001/p4runtime-go-controller/cmd/p4ctl@latest
+go install ./cmd/p4ctl
 ```
+
+Run that command from the repository root. After a v2 release is published:
+
+```sh
+go install github.com/zhh2001/p4runtime-go-controller/v2/cmd/p4ctl@latest
+```
+
+The command name remains `p4ctl`. The unsuffixed module path installs the v1 CLI.
 
 ## Global flags
 
