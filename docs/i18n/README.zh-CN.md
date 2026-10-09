@@ -62,6 +62,8 @@ func main() {
 
 Counter、Meter 和 Register 的读取接口只用 `-1` 表示读取整个数组，写入必须指定非负索引。普通索引会在发送请求前按 P4Info 的数组大小校验。声明了 `index_type_name` 的索引由目标在转换后检查，SDK 保留其非负原值。
 
+Meter 写入会按 P4Info 校验类型，速率和突发量必须非负。`EBurst` 用于单速率三色 meter。双速率要求 `PIR >= CIR`，单速率要求 `CIR = PIR`、`CBurst = PBurst`。`Write(Config{})` 发送显式全零配置，`Reset` 通过省略 Config 恢复默认 GREEN，不清空逐颜色计数器。旧 PI 使用 `-1` 表示默认行为的调用应改为 `Reset`。详见 [Meter 配置](../../meter/README.md)。
+
 ## 功能矩阵
 
 | 能力                                                 | 状态           |

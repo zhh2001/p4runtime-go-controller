@@ -152,6 +152,26 @@ Set both pipeline paths to run this test. It installs its pipeline on the select
 
 `TestBMv2_RegisterValues` uses the same pipeline pair. It checks local rejection of overflow and mismatched P4Data types, then inspects canonical zero, padded integer and maximum-value requests sent to the target. Targets with RegisterEntry support also undergo value readback. On targets without that support, the test verifies unsupported responses and reports that readback was unavailable. Controlled gRPC tests cover the other P4Data types and copying of caller values. See [Register arrays](../../register/README.md) for the write API.
 
+## Meter configuration
+
+`TestBMv2_MeterConfigs` checks local rejection of negative values and invalid field relationships, then writes and reads configurations at indexes 0 and 3. It distinguishes an explicit zero Config from Reset and verifies that the target receives burst values above uint32 for its own validation.
+
+`TestBMv2_MeterDataplane` runs on Linux with two host interfaces bound to switch ports 1 and 2. The fixture writes the meter color into the last byte of the source MAC and forwards the frame from port 1 to port 2. Zero rates prevent token refill, so finite bursts produce a deterministic GREEN, YELLOW, RED sequence. Explicit zeros produce RED, and Reset restores GREEN. Compile the fixture and run on a dedicated target:
+
+```bash
+mkdir -p /tmp/p4runtime-integration/meters
+p4c-bm2-ss --arch v1model \
+  --p4runtime-files /tmp/p4runtime-integration/meters/meters.p4info.txtpb \
+  -o /tmp/p4runtime-integration/meters/meters.json \
+  test/integration/testdata/meters.p4
+P4RT_METER_P4INFO=/tmp/p4runtime-integration/meters/meters.p4info.txtpb \
+P4RT_METER_DEVICE_CONFIG=/tmp/p4runtime-integration/meters/meters.json \
+go test -race -tags=integration -count=3 -v \
+  -run '^TestBMv2_Meter(Configs|Dataplane)$' ./test/integration/...
+```
+
+Set `P4RT_HOST_IFACE1` and `P4RT_HOST_IFACE2` and grant `CAP_NET_RAW` for the data plane test. Both tests install their pipeline. The V1Model fixture exercises two-rate three-color behavior. Controlled gRPC tests cover the single-rate field constraints and EBurst representation. This live fixture does not establish single-rate target support.
+
 ## Packet replication
 
 `TestBMv2_PRE` uses the bundled L2 pipeline to insert, read, modify and delete multicast groups and clone sessions. It checks legacy ports, byte ports with leading zeros and mixed replica sets. It also modifies entries directly from their read results. Run it on a target with device ID 1:
