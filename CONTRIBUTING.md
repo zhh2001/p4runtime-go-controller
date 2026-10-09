@@ -64,7 +64,7 @@ export PATH="$(go env GOPATH)/bin:$PATH"
 make docs
 ```
 
-The script writes `docs/api-reference.md` for all 12 public packages, including `codec` and `pre`. It excludes command, example, internal and integration-test packages. The reference is a local generated file. Regenerate it after changing exported declarations or their comments.
+The script writes `docs/api-reference.md` as an index of all 12 public packages, including `codec` and `pre`. Each package has its own page under `docs/api/`, with a link back to the index. Same-named declarations such as `Reader` and `Subscriber` have separate anchors on their package pages. Command, example, internal and integration-test packages are excluded. These are local generated files. Regenerate them after changing exported declarations or their comments.
 
 To check an existing reference without rewriting it, run:
 
@@ -72,7 +72,7 @@ To check an existing reference without rewriting it, run:
 ./scripts/gen-docs.sh --check
 ```
 
-The check exits with a nonzero status when the file is missing or differs from the current source. See [gomarkdoc's command-line options](https://github.com/princjef/gomarkdoc#command-line-usage) for other flags.
+The script checks each package page separately, then the index. A missing or outdated file produces a nonzero exit status without rewriting any output. Rendering and checking flags are forwarded to gomarkdoc. The script sets the output paths and file templates. Use gomarkdoc directly for a custom layout.
 
 ## Workflow
 

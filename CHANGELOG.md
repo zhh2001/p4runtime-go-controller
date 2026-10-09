@@ -25,6 +25,7 @@ Published releases follow the Go 1 source compatibility policy within a major ve
 
 ### Changed
 
+- API reference documentation uses a shared package index and separate package pages, so same-named declarations have distinct link targets. Generation and `--check` process each page separately, followed by the index.
 - API reference generation covers all 12 public packages, including `codec` and `pre`. The script accepts gomarkdoc flags such as `--check`, and the contribution guide documents installation, generation and verification.
 - Security maintenance covers the two most recent published minor lines within the latest published major. Prereleases count toward that window, so the first published v2 prerelease ends v1 security maintenance. Development branches and draft releases do not advance it. Issue reports now request the v2 module path and the CLI version subcommand, with Go build information for source installations.
 - The module path, SDK imports, tests and examples now use `github.com/zhh2001/p4runtime-go-controller/v2`. Published v1 tags retain the unsuffixed path. Before the first v2 release, applications can use a local checkout through a replace directive. See [Quickstart](docs/quickstart.md#1-install).
