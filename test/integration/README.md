@@ -145,10 +145,12 @@ p4c-bm2-ss --arch v1model \
 P4RT_RESOURCE_P4INFO=/tmp/p4runtime-integration/resources/resources.p4info.txtpb \
 P4RT_RESOURCE_DEVICE_CONFIG=/tmp/p4runtime-integration/resources/resources.json \
 go test -race -tags=integration -count=3 -v \
-  -run '^TestBMv2_ResourceIndexes$' ./test/integration/...
+  -run '^TestBMv2_(ResourceIndexes|RegisterValues)$' ./test/integration/...
 ```
 
 Set both pipeline paths to run this test. It installs its pipeline on the selected target. Some PI versions do not implement RegisterEntry RPCs. In that case, the test checks the target's unsupported response and skips valid register reads and writes. Invalid register indexes still undergo local validation. SDK tests against a controlled server cover valid register requests and preservation of named indexes above the physical array size. This live test does not establish support for index translation.
+
+`TestBMv2_RegisterValues` uses the same pipeline pair. It checks local rejection of overflow and mismatched P4Data types, then inspects canonical zero, padded integer and maximum-value requests sent to the target. Targets with RegisterEntry support also undergo value readback. On targets without that support, the test verifies unsupported responses and reports that readback was unavailable. Controlled gRPC tests cover the other P4Data types and copying of caller values. See [Register arrays](../../register/README.md) for the write API.
 
 ## Packet replication
 

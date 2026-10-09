@@ -67,7 +67,7 @@ See [`examples/`](examples/) for full end-to-end walkthroughs, including connect
 | Pipeline configuration (VERIFY / RECONCILE / COMMIT with fallback)              | ready        |
 | P4Info by-name / by-ID index                                                    | ready        |
 | Table entry insert / modify / delete (EXACT / LPM / TERNARY / RANGE / OPTIONAL) | ready        |
-| Counters, Meters, Registers (direct and indirect)                               | ready        |
+| Indirect counters and meters, typed register arrays                             | ready        |
 | PacketIn / PacketOut with metadata encode/decode                                | ready        |
 | Digest subscribe and ack                                                        | ready        |
 | Packet Replication Engine (multicast groups, clone sessions)                    | ready (v1.1) |

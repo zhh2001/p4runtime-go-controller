@@ -23,6 +23,11 @@ func registerPipeline(t *testing.T) *pipeline.Pipeline {
 		Registers: []*p4configv1.Register{{
 			Preamble: &p4configv1.Preamble{Id: 0xD0, Name: "ingress.counter_reg"},
 			Size:     8,
+			TypeSpec: &p4configv1.P4DataTypeSpec{TypeSpec: &p4configv1.P4DataTypeSpec_Bitstring{
+				Bitstring: &p4configv1.P4BitstringLikeTypeSpec{TypeSpec: &p4configv1.P4BitstringLikeTypeSpec_Bit{
+					Bit: &p4configv1.P4BitTypeSpec{Bitwidth: 8},
+				}},
+			}},
 		}},
 	}
 	p, err := pipeline.New(info, nil)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	p4configv1 "github.com/p4lang/p4runtime/go/p4/config/v1"
 	p4v1 "github.com/p4lang/p4runtime/go/p4/v1"
 
 	"github.com/zhh2001/p4runtime-go-controller/client"
@@ -54,15 +55,37 @@ func (r *Reader) Read(ctx context.Context, name string, index int64) ([]*p4v1.Re
 	return out, nil
 }
 
-// Write stores the canonical-byte value at the given index of register.
+// Write stores a bit<W> or int<W> value, including named types that resolve
+// to these integer types. Signed values use big-endian two's complement.
+// Values are copied and normalized to the shortest encoding. Empty input is zero.
+// Use WriteData for other types.
 // The index must be non-negative and within the array size, unless the register
 // declares a named index type for target-side translation.
 func (r *Reader) Write(ctx context.Context, name string, index int64, value []byte) error {
+	return r.write(ctx, name, index, &p4v1.P4Data{Data: &p4v1.P4Data_Bitstring{Bitstring: value}}, true)
+}
+
+// WriteData stores a P4Data value at index after validating it against P4Info.
+// Numeric fields are normalized and the value is copied before the RPC.
+// Strings exposed through translated types retain their original bytes.
+// Varbits retain their bytes and require an explicit bitwidth and matching length.
+// Varbit fields in valid headers are unsupported because P4Header has no bitwidth.
+// The index follows the same rules as Write. A nil value is an error.
+func (r *Reader) WriteData(ctx context.Context, name string, index int64, value *p4v1.P4Data) error {
+	return r.write(ctx, name, index, value, false)
+}
+
+func (r *Reader) write(ctx context.Context, name string, index int64, value *p4v1.P4Data, integerOnly bool) error {
 	rdef, ok := r.p.Register(name)
 	if !ok {
 		return fmt.Errorf("register %q not in pipeline", name)
 	}
 	if err := resourceindex.Validate(index, int64(rdef.Size), rdef.Raw().GetIndexTypeName().GetName(), false); err != nil {
+		return fmt.Errorf("register %q: %w", name, err)
+	}
+	n := dataNormalizer{types: r.p.Info().GetTypeInfo(), active: make(map[*p4configv1.P4DataTypeSpec]bool)}
+	data, err := n.normalize(rdef.Raw().GetTypeSpec(), value, integerOnly)
+	if err != nil {
 		return fmt.Errorf("register %q: %w", name, err)
 	}
 	update := &p4v1.Update{
@@ -71,9 +94,7 @@ func (r *Reader) Write(ctx context.Context, name string, index int64, value []by
 			RegisterEntry: &p4v1.RegisterEntry{
 				RegisterId: rdef.ID,
 				Index:      &p4v1.Index{Index: index},
-				Data: &p4v1.P4Data{
-					Data: &p4v1.P4Data_Bitstring{Bitstring: value},
-				},
+				Data:       data,
 			},
 		}},
 	}
