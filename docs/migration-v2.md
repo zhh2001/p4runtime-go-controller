@@ -1,6 +1,6 @@
 # Migrating from v1 to v2
 
-This guide covers applications using the published v1.1.1 SDK. The v2 development branch changes the module path and several API behaviors. Review the [Unreleased notes](../CHANGELOG.md#unreleased) alongside your application's tests.
+This guide covers applications using the published v1.1.1 SDK. The v2 development branch changes the module path and several API behaviors. Review the [v2.0.0-rc.1 release notes](release-notes/v2.0.0-rc.1.md) alongside your application's tests.
 
 ## Update the module and imports
 

@@ -4,12 +4,15 @@ All notable changes to this project are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Published releases follow the Go 1 source compatibility policy within a major version. Incompatible public API changes require a major version bump. The current Unreleased changes are planned for the next major release. See [Release preparation](docs/releases.md).
+Published releases follow the Go 1 source compatibility policy within a major version. Incompatible public API changes require a major version bump. The `2.0.0-rc.1` section records the changes prepared for v2. See [Release preparation](docs/releases.md).
 
 ## [Unreleased]
 
+## [2.0.0-rc.1] - 2026-10-09
+
 ### Added
 
+- [v2.0.0-rc.1 release notes](docs/release-notes/v2.0.0-rc.1.md) and a local candidate release rehearsal.
 - A [v1 to v2 migration guide](docs/migration-v2.md) covering application dependencies, source changes, behavior checks and CLI automation. The release guide also distinguishes SDK tags, draft releases and CLI archive installations.
 - `client.Client.CloseGracefully(ctx)` drains accepted stream sends, half-closes StreamChannel and waits for the target's final RPC status. It releases the connection on success, error or timeout. Use a deadline and call it outside stream handlers.
 - `errors.WriteError` preserves the original gRPC status and complete per-update results in request order, including successful updates. Use the standard library's `errors.As` to inspect `Updates` before retrying a partially successful batch. Its `errors.Is` matches any failed update. `Updates` is nil when the response lacks valid, complete results.
