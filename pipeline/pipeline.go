@@ -14,7 +14,9 @@ import (
 // action parameters, counters, direct counters, meters, direct meters,
 // registers, digests, and controller packet metadata.
 //
-// A Pipeline is immutable after construction and safe for concurrent use.
+// A Pipeline owns its inputs and is immutable after construction. Its methods
+// are safe for concurrent use. Returned messages and definitions are independent
+// copies whose mutation does not change the Pipeline.
 type Pipeline struct {
 	info         *p4configv1.P4Info
 	deviceConfig []byte
@@ -82,8 +84,9 @@ func (t *TableDef) MatchFieldByID(id uint32) (*MatchFieldDef, bool) {
 	return m, ok
 }
 
-// Raw returns the underlying P4Info proto message.
-func (t *TableDef) Raw() *p4configv1.Table { return t.raw }
+// Raw returns a copy of the original P4Info message. Changes to the copy
+// do not update the definition or its Pipeline.
+func (t *TableDef) Raw() *p4configv1.Table { return proto.CloneOf(t.raw) }
 
 // ActionRef is a reference to an Action from inside a TableDef.
 type ActionRef struct {
@@ -120,8 +123,9 @@ func (a *ActionDef) ParamByID(id uint32) (*ActionParamDef, bool) {
 	return p, ok
 }
 
-// Raw returns the underlying P4Info proto message.
-func (a *ActionDef) Raw() *p4configv1.Action { return a.raw }
+// Raw returns a copy of the original P4Info message. Changes to the copy
+// do not update the definition or its Pipeline.
+func (a *ActionDef) Raw() *p4configv1.Action { return proto.CloneOf(a.raw) }
 
 // ActionParamDef describes a single parameter on an action.
 type ActionParamDef struct {
@@ -139,8 +143,9 @@ type CounterDef struct {
 	raw  *p4configv1.Counter
 }
 
-// Raw returns the underlying P4Info proto message.
-func (c *CounterDef) Raw() *p4configv1.Counter { return c.raw }
+// Raw returns a copy of the original P4Info message. Changes to the copy
+// do not update the definition or its Pipeline.
+func (c *CounterDef) Raw() *p4configv1.Counter { return proto.CloneOf(c.raw) }
 
 // DirectCounterDef describes a direct counter attached to a table.
 type DirectCounterDef struct {
@@ -152,8 +157,9 @@ type DirectCounterDef struct {
 	raw             *p4configv1.DirectCounter
 }
 
-// Raw returns the underlying P4Info proto message.
-func (c *DirectCounterDef) Raw() *p4configv1.DirectCounter { return c.raw }
+// Raw returns a copy of the original P4Info message. Changes to the copy
+// do not update the definition or its Pipeline.
+func (c *DirectCounterDef) Raw() *p4configv1.DirectCounter { return proto.CloneOf(c.raw) }
 
 // MeterDef describes an indirect meter array.
 type MeterDef struct {
@@ -164,8 +170,9 @@ type MeterDef struct {
 	raw  *p4configv1.Meter
 }
 
-// Raw returns the underlying P4Info proto message.
-func (m *MeterDef) Raw() *p4configv1.Meter { return m.raw }
+// Raw returns a copy of the original P4Info message. Changes to the copy
+// do not update the definition or its Pipeline.
+func (m *MeterDef) Raw() *p4configv1.Meter { return proto.CloneOf(m.raw) }
 
 // DirectMeterDef describes a direct meter attached to a table.
 type DirectMeterDef struct {
@@ -177,8 +184,9 @@ type DirectMeterDef struct {
 	raw             *p4configv1.DirectMeter
 }
 
-// Raw returns the underlying P4Info proto message.
-func (m *DirectMeterDef) Raw() *p4configv1.DirectMeter { return m.raw }
+// Raw returns a copy of the original P4Info message. Changes to the copy
+// do not update the definition or its Pipeline.
+func (m *DirectMeterDef) Raw() *p4configv1.DirectMeter { return proto.CloneOf(m.raw) }
 
 // RegisterDef describes a P4 register array.
 type RegisterDef struct {
@@ -188,8 +196,9 @@ type RegisterDef struct {
 	raw  *p4configv1.Register
 }
 
-// Raw returns the underlying P4Info proto message.
-func (r *RegisterDef) Raw() *p4configv1.Register { return r.raw }
+// Raw returns a copy of the original P4Info message. Changes to the copy
+// do not update the definition or its Pipeline.
+func (r *RegisterDef) Raw() *p4configv1.Register { return proto.CloneOf(r.raw) }
 
 // DigestDef describes a P4 digest declaration.
 type DigestDef struct {
@@ -198,8 +207,9 @@ type DigestDef struct {
 	raw  *p4configv1.Digest
 }
 
-// Raw returns the underlying P4Info proto message.
-func (d *DigestDef) Raw() *p4configv1.Digest { return d.raw }
+// Raw returns a copy of the original P4Info message. Changes to the copy
+// do not update the definition or its Pipeline.
+func (d *DigestDef) Raw() *p4configv1.Digest { return proto.CloneOf(d.raw) }
 
 // ControllerPacketMetadataDef describes either PacketIn or PacketOut
 // controller packet metadata.
@@ -230,8 +240,11 @@ func (c *ControllerPacketMetadataDef) FieldByID(id uint32) (*PacketMetadataField
 	return f, ok
 }
 
-// Raw returns the underlying P4Info proto message.
-func (c *ControllerPacketMetadataDef) Raw() *p4configv1.ControllerPacketMetadata { return c.raw }
+// Raw returns a copy of the original P4Info message. Changes to the copy
+// do not update the definition or its Pipeline.
+func (c *ControllerPacketMetadataDef) Raw() *p4configv1.ControllerPacketMetadata {
+	return proto.CloneOf(c.raw)
+}
 
 // PacketMetadataField is a single field inside a controller packet metadata
 // header.
@@ -243,13 +256,19 @@ type PacketMetadataField struct {
 
 // New builds a Pipeline from a pre-parsed P4Info message and an optional
 // opaque device configuration blob. The device configuration is passed
-// through to SetForwardingPipelineConfig verbatim.
+// through to SetForwardingPipelineConfig verbatim. New copies both inputs.
+// Callers must not modify either input while New is reading it.
+// Pointer cycles and malformed nil message values return an error before copying.
+// Other resource and type rules are checked by the corresponding APIs or target.
 func New(info *p4configv1.P4Info, deviceConfig []byte) (*Pipeline, error) {
 	if info == nil {
 		return nil, fmt.Errorf("pipeline.New: nil P4Info")
 	}
+	if err := validateMessageGraph(info); err != nil {
+		return nil, fmt.Errorf("pipeline.New: %w", err)
+	}
 	p := &Pipeline{
-		info:                 info,
+		info:                 proto.CloneOf(info),
 		deviceConfig:         append([]byte(nil), deviceConfig...),
 		tablesByName:         map[string]*TableDef{},
 		tablesByID:           map[uint32]*TableDef{},
@@ -294,9 +313,9 @@ func LoadText(p4infoText []byte, deviceConfig []byte) (*Pipeline, error) {
 	return New(info, deviceConfig)
 }
 
-// Info returns the underlying P4Info proto. Callers must treat the result as
-// read-only.
-func (p *Pipeline) Info() *p4configv1.P4Info { return p.info }
+// Info returns a deep copy of the P4Info message. Changes to it do not affect
+// the Pipeline. To use an edited configuration, construct a new Pipeline.
+func (p *Pipeline) Info() *p4configv1.P4Info { return proto.CloneOf(p.info) }
 
 // DeviceConfig returns a copy of the opaque device configuration blob.
 func (p *Pipeline) DeviceConfig() []byte {
@@ -308,143 +327,143 @@ func (p *Pipeline) DeviceConfig() []byte {
 	return out
 }
 
-// Table returns the table with the given fully qualified name.
+// Table returns a copy of the table with the given name or alias.
 func (p *Pipeline) Table(name string) (*TableDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	t, ok := p.tablesByName[name]
-	return t, ok
+	return t.clone(), ok
 }
 
-// TableByID returns the table with the given P4Info ID.
+// TableByID returns a copy of the table with the given P4Info ID.
 func (p *Pipeline) TableByID(id uint32) (*TableDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	t, ok := p.tablesByID[id]
-	return t, ok
+	return t.clone(), ok
 }
 
-// Tables returns every table in the pipeline, in P4Info order.
+// Tables returns independent copies of every table, in P4Info order.
 func (p *Pipeline) Tables() []*TableDef {
 	out := make([]*TableDef, 0, len(p.tablesByName))
 	for _, t := range p.info.GetTables() {
 		if td, ok := p.tablesByID[t.GetPreamble().GetId()]; ok {
-			out = append(out, td)
+			out = append(out, td.clone())
 		}
 	}
 	return out
 }
 
-// Action returns the action with the given fully qualified name.
+// Action returns a copy of the action with the given name or alias.
 func (p *Pipeline) Action(name string) (*ActionDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	a, ok := p.actionsByName[name]
-	return a, ok
+	return a.clone(), ok
 }
 
-// ActionByID returns the action with the given P4Info ID.
+// ActionByID returns a copy of the action with the given P4Info ID.
 func (p *Pipeline) ActionByID(id uint32) (*ActionDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	a, ok := p.actionsByID[id]
-	return a, ok
+	return a.clone(), ok
 }
 
-// Counter returns the indirect counter with the given fully qualified name.
+// Counter returns a copy of the indirect counter with the given name or alias.
 func (p *Pipeline) Counter(name string) (*CounterDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	c, ok := p.countersByName[name]
-	return c, ok
+	return copyValue(c), ok
 }
 
-// CounterByID returns the indirect counter with the given ID.
+// CounterByID returns a copy of the indirect counter with the given ID.
 func (p *Pipeline) CounterByID(id uint32) (*CounterDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	c, ok := p.countersByID[id]
-	return c, ok
+	return copyValue(c), ok
 }
 
-// DirectCounter returns the direct counter with the given name.
+// DirectCounter returns a copy of the direct counter with the given name.
 func (p *Pipeline) DirectCounter(name string) (*DirectCounterDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	c, ok := p.directCountersByName[name]
-	return c, ok
+	return copyValue(c), ok
 }
 
-// Meter returns the indirect meter with the given name.
+// Meter returns a copy of the indirect meter with the given name or alias.
 func (p *Pipeline) Meter(name string) (*MeterDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	m, ok := p.metersByName[name]
-	return m, ok
+	return copyValue(m), ok
 }
 
-// DirectMeter returns the direct meter with the given name.
+// DirectMeter returns a copy of the direct meter with the given name.
 func (p *Pipeline) DirectMeter(name string) (*DirectMeterDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	m, ok := p.directMetersByName[name]
-	return m, ok
+	return copyValue(m), ok
 }
 
-// Register returns the register array with the given name.
+// Register returns a copy of the register array with the given name or alias.
 func (p *Pipeline) Register(name string) (*RegisterDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	r, ok := p.registersByName[name]
-	return r, ok
+	return copyValue(r), ok
 }
 
-// Digest returns the digest with the given name.
+// Digest returns a copy of the digest with the given name or alias.
 func (p *Pipeline) Digest(name string) (*DigestDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	d, ok := p.digestsByName[name]
-	return d, ok
+	return copyValue(d), ok
 }
 
-// DigestByID returns the digest with the given P4 ID.
+// DigestByID returns a copy of the digest with the given P4 ID.
 func (p *Pipeline) DigestByID(id uint32) (*DigestDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	d, ok := p.digestsByID[id]
-	return d, ok
+	return copyValue(d), ok
 }
 
-// PacketMetadata returns the controller packet metadata header with the
+// PacketMetadata returns a copy of the controller packet metadata header with the
 // given name (typically "packet_in" or "packet_out").
 func (p *Pipeline) PacketMetadata(name string) (*ControllerPacketMetadataDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	c, ok := p.ctrlPktByName[name]
-	return c, ok
+	return c.clone(), ok
 }
 
-// PacketMetadataByID returns the controller packet metadata header with the
+// PacketMetadataByID returns a copy of the controller packet metadata header with the
 // given ID.
 func (p *Pipeline) PacketMetadataByID(id uint32) (*ControllerPacketMetadataDef, bool) {
 	if p == nil {
 		return nil, false
 	}
 	c, ok := p.ctrlPktByID[id]
-	return c, ok
+	return c.clone(), ok
 }
 
 func (p *Pipeline) index() {

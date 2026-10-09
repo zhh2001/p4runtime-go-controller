@@ -62,6 +62,8 @@ func main() {
 
 Counter、Meter 和 Register 的读取接口只用 `-1` 表示读取整个数组，写入必须指定非负索引。普通索引会在发送请求前按 P4Info 的数组大小校验。声明了 `index_type_name` 的索引由目标在转换后检查，SDK 保留其非负原值。
 
+Pipeline 在构造时复制 P4Info 和设备配置，`Info`、`Raw` 及资源查询返回独立副本。修改输入或查询结果不会影响后续索引、校验及管线下发。跨次查询应通过资源 ID 判断身份。需要修改管线时，编辑 `Info()` 返回的副本，再构造新的 Pipeline。构造期间不能修改输入。指针循环及异常 nil 消息会在构造阶段报错，普通类型和资源规则仍由相应 API 或目标检查。详见 [Pipeline 数据所有权](../../pipeline/README.md)。
+
 Counter API 读写间接计数器，direct counter 使用原始 client API。写入同时发送 packets 和 bytes，由目标按声明单位处理。计数保留协议的 int64 原值，不截断为 32 位，也不将负值改为无符号十进制数。`Write(ctx, name, index, 0, 0)` 发送显式零值以清空对应计数。详见 [Counter 读写](../../counter/README.md)。
 
 Meter 写入会按 P4Info 校验类型，速率和突发量必须非负。`EBurst` 用于单速率三色 meter。双速率要求 `PIR >= CIR`，单速率要求 `CIR = PIR`、`CBurst = PBurst`。`Write(Config{})` 发送显式全零配置，`Reset` 通过省略 Config 恢复默认 GREEN，不清空逐颜色计数器。旧 PI 使用 `-1` 表示默认行为的调用应改为 `Reset`。详见 [Meter 配置](../../meter/README.md)。

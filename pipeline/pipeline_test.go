@@ -112,11 +112,11 @@ func TestNew_Indexes(t *testing.T) {
 
 	tbl2, ok := p.Table("t_l2")
 	require.True(t, ok)
-	assert.Same(t, tbl, tbl2)
+	assert.Equal(t, tbl, tbl2)
 
 	tbl3, ok := p.TableByID(100)
 	require.True(t, ok)
-	assert.Same(t, tbl, tbl3)
+	assert.Equal(t, tbl, tbl3)
 
 	// Match field lookups.
 	mf, ok := tbl.MatchField("hdr.eth.dst")
@@ -143,11 +143,11 @@ func TestNew_Indexes(t *testing.T) {
 
 	actAlias, ok := p.Action("forward")
 	require.True(t, ok)
-	assert.Same(t, act, actAlias)
+	assert.Equal(t, act, actAlias)
 
 	actByID, ok := p.ActionByID(200)
 	require.True(t, ok)
-	assert.Same(t, act, actByID)
+	assert.Equal(t, act, actByID)
 
 	// Counters, meters, registers, digests, packet metadata.
 	cnt, ok := p.Counter("ingress.pkt_counter")
@@ -197,7 +197,7 @@ func TestDigestByID(t *testing.T) {
 	require.True(t, ok)
 	byID, ok := p.DigestByID(600)
 	require.True(t, ok)
-	assert.Same(t, byName, byID)
+	assert.Equal(t, byName, byID)
 	byID, ok = p.DigestByID(999)
 	assert.False(t, ok)
 	assert.Nil(t, byID)

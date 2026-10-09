@@ -132,7 +132,7 @@ The context passed to `Dial` bounds connection setup. The session has its own co
 
 The table entry builder encodes match fields and action parameters before a write request is sent. This lets callers inspect the resulting proto and report validation errors before making an RPC.
 
-`pipeline.Pipeline` keeps P4Info indexes for lookups by name and ID. The device configuration remains an opaque blob and is passed to the target unchanged.
+`pipeline.Pipeline` owns copies of its P4Info and device configuration and keeps indexes for lookups by name and ID. Info, Raw and resource queries return independent copies. External edits cannot change the stored configuration or later validation. Constructor inputs must remain unchanged until construction returns. New rejects pointer cycles and malformed nil message values before copying. Other validation stays with the resource APIs and target. The device configuration remains opaque and is passed to the target unchanged. See [Pipeline ownership](pipeline/README.md) for editing and identity rules.
 
 Counter, meter and register readers accept `-1` to read the whole array. Other reads and all writes require a non-negative index. For ordinary indexes, the SDK checks the array size in P4Info before making an RPC. When `index_type_name` names a type, the target checks the index after any required translation. The SDK sends that non-negative value unchanged.
 

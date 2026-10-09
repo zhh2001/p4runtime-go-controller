@@ -36,6 +36,8 @@ The L2 tests also check duplicate inserts, missing-entry modifications and delet
 
 `TestBMv2_PipelineActions` saves the config from `testdata/masks.p4`, writes a TERNARY entry, then commits with no config. It reads back the saved config and entry. It also checks that `VERIFY` and `RECONCILE_AND_COMMIT` retain the entry, while `VERIFY_AND_COMMIT` clears it. This test uses `P4RT_MASK_P4INFO` and `P4RT_MASK_DEVICE_CONFIG`, which must come from the same compilation.
 
+`TestBMv2_PipelineOwnership` uses the bundled L2 pair. It changes the constructor inputs, Info, Raw and separately retrieved definitions before installing the Pipeline. It reads back the original P4Info and device configuration, then inserts, reads and deletes an entry through a builder created before those edits. Run it with `./scripts/test-bmv2.sh -count=3 -v -run '^TestBMv2_PipelineOwnership$'`. Controlled gRPC tests also check the typed resource and stream requests after external edits, while SDK race tests cover concurrent snapshot access.
+
 To check queries and writes before pipeline installation, start a fresh target and run these tests separately, before the rest of the suite:
 
 ```bash

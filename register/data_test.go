@@ -81,9 +81,12 @@ func dataTypes() *p4configv1.P4TypeInfo {
 		},
 	}
 }
+func dataPipeline(spec *p4configv1.P4DataTypeSpec, types *p4configv1.P4TypeInfo) (*pipeline.Pipeline, error) {
+	return pipeline.New(&p4configv1.P4Info{TypeInfo: types, Registers: []*p4configv1.Register{{Preamble: &p4configv1.Preamble{Id: 0x16000001, Name: "ingress.state", Alias: "state"}, Size: 8, TypeSpec: spec}}}, nil)
+}
 func dataReader(t *testing.T, c *client.Client, spec *p4configv1.P4DataTypeSpec, types *p4configv1.P4TypeInfo) *register.Reader {
 	t.Helper()
-	p, err := pipeline.New(&p4configv1.P4Info{TypeInfo: types, Registers: []*p4configv1.Register{{Preamble: &p4configv1.Preamble{Id: 0x16000001, Name: "ingress.state", Alias: "state"}, Size: 8, TypeSpec: spec}}}, nil)
+	p, err := dataPipeline(spec, types)
 	require.NoError(t, err)
 	r, err := register.NewReader(c, p)
 	require.NoError(t, err)
@@ -203,7 +206,7 @@ func TestRegisterData_InvalidValues(t *testing.T) {
 		{"varbit too many bytes", varbitType(32), varbitData(8, 0, 1), "requires 1 bytes"},
 		{"varbit empty has byte", varbitType(32), varbitData(0, 0), "requires 0 bytes"},
 		{"varbit non-byte overflow", varbitType(32), varbitData(9, 2, 0), "width"},
-		{"varbit missing declaration", &p4configv1.P4DataTypeSpec{TypeSpec: &p4configv1.P4DataTypeSpec_Bitstring{Bitstring: &p4configv1.P4BitstringLikeTypeSpec{TypeSpec: &p4configv1.P4BitstringLikeTypeSpec_Varbit{}}}}, varbitData(0), "P4Data.varbit"},
+		{"varbit missing declaration", &p4configv1.P4DataTypeSpec{TypeSpec: &p4configv1.P4DataTypeSpec_Bitstring{Bitstring: &p4configv1.P4BitstringLikeTypeSpec{TypeSpec: &p4configv1.P4BitstringLikeTypeSpec_Varbit{}}}}, varbitData(0), "missing varbit"},
 		{"missing bitstring declaration", &p4configv1.P4DataTypeSpec{TypeSpec: &p4configv1.P4DataTypeSpec_Bitstring{}}, bitData(1), "missing bitstring"},
 		{"missing bit declaration", &p4configv1.P4DataTypeSpec{TypeSpec: &p4configv1.P4DataTypeSpec_Bitstring{Bitstring: &p4configv1.P4BitstringLikeTypeSpec{TypeSpec: &p4configv1.P4BitstringLikeTypeSpec_Bit{}}}}, bitData(1), "missing bit"},
 		{"missing int declaration", &p4configv1.P4DataTypeSpec{TypeSpec: &p4configv1.P4DataTypeSpec_Bitstring{Bitstring: &p4configv1.P4BitstringLikeTypeSpec{TypeSpec: &p4configv1.P4BitstringLikeTypeSpec_Int{}}}}, bitData(1), "missing int"},
@@ -228,8 +231,13 @@ func TestRegisterData_InvalidValues(t *testing.T) {
 		{"invalid union has header", namedType("union", "U"), &p4v1.P4Data{Data: &p4v1.P4Data_HeaderUnion{HeaderUnion: &p4v1.P4HeaderUnion{ValidHeader: &p4v1.P4Header{}}}}, "must have no valid_header"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			r := dataReader(t, c, tc.spec, dataTypes())
-			require.ErrorContains(t, r.WriteData(ctx, "state", 0, tc.value), tc.message)
+			p, err := dataPipeline(tc.spec, dataTypes())
+			if err == nil {
+				r, readerErr := register.NewReader(c, p)
+				require.NoError(t, readerErr)
+				err = r.WriteData(ctx, "state", 0, tc.value)
+			}
+			require.ErrorContains(t, err, tc.message)
 			h.Mu.Lock()
 			defer h.Mu.Unlock()
 			require.Empty(t, h.WriteRequests, "invalid value reached target")
@@ -305,12 +313,14 @@ func TestRegisterData_MetadataAndStacks(t *testing.T) {
 	r := dataReader(t, c, namedType("header", "Variable"), types)
 	require.ErrorContains(t, r.WriteData(ctx, "state", 0, &p4v1.P4Data{Data: &p4v1.P4Data_Header{Header: &p4v1.P4Header{IsValid: true, Bitstrings: [][]byte{{0, 1}}}}}), "no explicit bitwidth")
 	types.Structs["Record"].Members[0] = nil
-	r = dataReader(t, c, namedType("struct", "Record"), types)
-	require.ErrorContains(t, r.WriteData(ctx, "state", 0, &p4v1.P4Data{Data: &p4v1.P4Data_Struct{Struct: &p4v1.P4StructLike{Members: []*p4v1.P4Data{bitData(0), boolData(false), bitData(0)}}}}), "missing P4Info")
+	_, err := dataPipeline(namedType("struct", "Record"), types)
+	require.ErrorContains(t, err, "missing P4Info")
+	types.Structs["Record"].Members[0] = dataTypes().Structs["Record"].Members[0]
 	types.NewTypes["Port"].GetTranslatedType().SdnType = nil
 	r = dataReader(t, c, namedType("new", "Port"), types)
 	require.ErrorContains(t, r.WriteData(ctx, "state", 0, bitData(1)), "missing translation")
 	types.NewTypes["Port"].GetTranslatedType().SdnType = &p4configv1.P4NewTypeTranslation_SdnBitwidth{SdnBitwidth: 0}
+	r = dataReader(t, c, namedType("new", "Port"), types)
 	require.ErrorContains(t, r.WriteData(ctx, "state", 0, bitData(1)), "must be positive")
 	h.Mu.Lock()
 	require.Empty(t, h.WriteRequests)
@@ -370,11 +380,11 @@ func TestRegisterData_RecursiveTypes(t *testing.T) {
 	ctx, c := dataClient(t, h)
 	spec := tupleType()
 	spec.GetTuple().Members = []*p4configv1.P4DataTypeSpec{spec}
-	r := dataReader(t, c, spec, dataTypes())
-	require.ErrorContains(t, r.WriteData(ctx, "state", 0, tupleData(tupleData())), "recursive")
+	_, err := dataPipeline(spec, dataTypes())
+	require.ErrorContains(t, err, "recursive")
 	types := dataTypes()
 	types.NewTypes["Loop"] = &p4configv1.P4NewTypeSpec{Representation: &p4configv1.P4NewTypeSpec_OriginalType{OriginalType: namedType("new", "Loop")}}
-	r = dataReader(t, c, namedType("new", "Loop"), types)
+	r := dataReader(t, c, namedType("new", "Loop"), types)
 	require.ErrorContains(t, r.WriteData(ctx, "state", 0, bitData(1)), "recursive")
 	cycle := tupleData()
 	cycle.GetTuple().Members = []*p4v1.P4Data{cycle}
