@@ -1,0 +1,11 @@
+.VPHomeHero .name {
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .VPHomeHero .name {
+    font-size: clamp(20px, 7vw, 32px);
+    line-height: 1.2;
+  }
+}
