@@ -1,0 +1,29 @@
+.VPDoc .vp-doc {
+  font-family: 'Times New Roman', SimSun, 'Songti SC', 'Noto Serif CJK SC', 'Noto Serif SC', serif;
+  font-size: 1.125rem;
+  line-height: 1.8;
+  --vp-code-font-size: 0.875rem;
+}
+
+.VPDoc .vp-doc p {
+  line-height: inherit;
+}
+
+.VPDoc .vp-doc blockquote>p {
+  font-size: inherit;
+}
+
+.VPDoc .vp-doc :is(h1, h2, h3, h4, h5, h6, .custom-block-title) {
+  font-family: var(--vp-font-family-base);
+}
+
+.VPDoc .vp-doc :is(div[class*='language-'], .vp-code-group) {
+  font-family: var(--vp-font-family-base);
+  font-size: 1rem;
+  line-height: 24px;
+}
+
+.VPDoc .vp-doc table {
+  --vp-code-font-size: 0.875em;
+  line-height: 24px;
+}

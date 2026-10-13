@@ -99,6 +99,8 @@ The build checks internal links, heading anchors, local assets, page metadata an
 
 Page descriptions and share metadata are defined in `docs/.vitepress/metadata.mjs`. The share image is `docs/public/social-card.png`, rendered at 1200 × 630 from `docs/public/social-card.svg`. Update both files when changing the card. VitePress includes language alternatives in the sitemap for pages with English and Chinese counterparts.
 
+Document typography is defined in `docs/.vitepress/theme/typography.css`. Body text uses Times New Roman and SimSun from the reader's system, with Songti SC and Noto Serif fallbacks. Paragraphs use an 18px font size and 1.8 line spacing. The home pages, headings, navigation and code keep the default theme's typography. Check English and Chinese pages on desktop and mobile when adjusting these styles.
+
 The `docs` workflow builds pull requests. On main, it also deploys to GitHub Pages. Select **GitHub Actions** under the repository's **Settings → Pages → Build and deployment → Source** before its first deployment. The project path is `/p4runtime-go-controller/`.
 
 ## Workflow
