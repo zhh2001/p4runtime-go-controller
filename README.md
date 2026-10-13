@@ -15,17 +15,17 @@ A production-grade Go SDK for writing P4Runtime controllers.
 - Zero hard dependency beyond `google.golang.org/grpc`, `google.golang.org/protobuf`, and the official P4Runtime proto stubs.
 - Structured logging through `log/slog` and gRPC interceptor hooks for application metrics and tracing. Built-in metrics and adapters are planned. See [Observability](docs/observability.md).
 
-> Published releases preserve source compatibility within a major version under the [Go 1 compatibility policy](https://go.dev/doc/go1compat). This branch develops v2 and is not source-compatible with `v1.1.1`. See the [CHANGELOG](CHANGELOG.md) and [release guide](docs/releases.md).
+> Published releases preserve source compatibility within a major version under the [Go 1 compatibility policy](https://go.dev/doc/go1compat). v2 is not source-compatible with `v1.1.1`. See the [CHANGELOG](CHANGELOG.md) and [release guide](docs/releases.md).
 
 ## Install
 
-Requires Go 1.26 or newer. Before the first v2 release, use a local checkout as described in the [Quickstart](docs/quickstart.md#1-install).
-
-After a v2 release is published, run this command from your application's Go module:
+Requires Go 1.26 or newer. Run this command from your application's Go module:
 
 ```sh
-go get github.com/zhh2001/p4runtime-go-controller/v2@latest
+go get github.com/zhh2001/p4runtime-go-controller/v2@v2.0.0
 ```
+
+See the [Quickstart](docs/quickstart.md#1-install) for CLI installation and local development.
 
 ## Quickstart
 
@@ -88,7 +88,7 @@ See [`examples/`](examples/) for full end-to-end walkthroughs, including connect
 | Controller version    | P4Runtime spec |
 | --------------------- | -------------- |
 | `v1.x`                | 1.3.0+         |
-| v2 development branch | 1.3.0+         |
+| `v2.x`                | 1.3.0+         |
 
 This is the protocol baseline. Optional resources and newer fields require target support. Byte-based PRE ports require P4Runtime 1.4 or later, and backup replicas require 1.5 or later. See [PRE](pre/README.md).
 

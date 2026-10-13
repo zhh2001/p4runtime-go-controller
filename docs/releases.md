@@ -4,19 +4,19 @@
 
 Published versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and the [Go 1 source compatibility policy](https://go.dev/doc/go1compat). Public API additions belong in a minor version when existing supported code remains compatible. Incompatible public API changes require a new major version.
 
-The current development branch develops v2. `pre.Replica` now contains slices, so existing comparisons and map keys using that type no longer compile. The branch also contains the behavior changes listed in [CHANGELOG](../CHANGELOG.md). Release tags for this branch must be in the v2 series.
+v2 includes the behavior changes listed in [CHANGELOG](../CHANGELOG.md). `pre.Replica` contains slices, so existing v1 comparisons and map keys using that type no longer compile. Release tags for this branch must be in the v2 series.
 
 The module path is `github.com/zhh2001/p4runtime-go-controller/v2`, declared at the repository root. SDK imports, tests and examples use the `/v2` prefix. Published v1 tags retain `github.com/zhh2001/p4runtime-go-controller`. Go treats them as separate modules, so an application can use both versions with distinct import aliases. See [Go modules: v2 and beyond](https://go.dev/blog/v2-go-modules).
 
-Use a published v1 tag when an application needs the existing v1 API. `@latest` selects a published version of the requested module path. Before the first v2 release, follow the [local checkout instructions](quickstart.md#1-install).
+Use a published v1 tag when an application needs the existing v1 API. `@latest` selects a published version of the requested module path. Use an exact tag for a reproducible installation. The [Quickstart](quickstart.md#1-install) covers the stable v2 version and local development.
 
 Applications upgrading from v1.1.1 should follow the [v2 migration guide](migration-v2.md), including source changes, behavior checks and CLI automation.
 
-## Planned prerelease
+## v2.0.0
 
-The first v2 release candidate, `v2.0.0-rc.1`, is scheduled for 2026-10-09. Its [release notes](release-notes/v2.0.0-rc.1.md) cover compatibility, SDK and CLI changes, installation and target support. CHANGELOG contains the dated `2.0.0-rc.1` section and retains Unreleased for later changes.
+`v2.0.0` is the first stable v2 release, dated 2026-10-13. It promotes `v2.0.0-rc.1` without SDK or CLI implementation changes. Its [release notes](release-notes/v2.0.0.md) cover compatibility, SDK and CLI changes, installation and target support. CHANGELOG retains the candidate's history and Unreleased for later changes.
 
-Commit the prepared files before creating the tag. Review the draft assets and use the prepared notes as the public release body. The first published v2 prerelease also changes the security maintenance window described below.
+Commit the prepared files before creating the tag. Review the draft assets and use the prepared notes as the public release body. Publish this version as a stable release and mark it Latest. Security maintenance remains on the v2.0 line, as established by the published candidate.
 
 ## Release preparation
 
@@ -36,18 +36,18 @@ goreleaser release --snapshot --skip=publish,sign --clean
 
 The snapshot command builds local artifacts without publishing a release. Its version label is `2.0.0-SNAPSHOT-<short commit>`, including when the latest existing tag is v1. This label does not publish or reserve a release version. The snapshot does not validate GitHub OIDC signing. The tag workflow installs Cosign for that step.
 
-## Local candidate rehearsal
+## Local release rehearsal
 
-To check the selected candidate's archive names and CLI version before its tag exists, run this command in a disposable checkout:
+To check the selected version's archive names and CLI version before its tag exists, run this command in a disposable checkout:
 
 ```sh
-GORELEASER_CURRENT_TAG=v2.0.0-rc.1 \
-GORELEASER_PREVIOUS_TAG=v1.1.1 \
+GORELEASER_CURRENT_TAG=v2.0.0 \
+GORELEASER_PREVIOUS_TAG=v2.0.0-rc.1 \
 goreleaser release --clean --skip=validate,publish,sign \
-    --release-notes docs/release-notes/v2.0.0-rc.1.md
+    --release-notes docs/release-notes/v2.0.0.md
 ```
 
-The environment selects the candidate version locally, and the notes file replaces generated commit notes. The command creates local artifacts without creating a tag or uploading a release. It skips tag validation and signing to rehearse an unpublished version. Run the regular preparation checks before creating the real tag. Upload permissions and GitHub OIDC signing are checked by the tagged workflow.
+The environment selects the version locally, and the notes file replaces generated commit notes. The command creates local artifacts without creating a tag or uploading a release. It skips tag validation and signing to rehearse an unpublished version. Run the regular preparation checks before creating the real tag. Upload permissions and GitHub OIDC signing are checked by the tagged workflow.
 
 ## Tagged release workflow
 

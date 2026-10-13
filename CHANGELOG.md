@@ -4,9 +4,16 @@ All notable changes to this project are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Published releases follow the Go 1 source compatibility policy within a major version. Incompatible public API changes require a major version bump. The `2.0.0-rc.1` section records the changes prepared for v2. See [Release preparation](docs/releases.md).
+Published releases follow the Go 1 source compatibility policy within a major version. Incompatible public API changes require a major version bump. See [Release preparation](docs/releases.md).
 
 ## [Unreleased]
+
+## [2.0.0] - 2026-10-13
+
+### Changed
+
+- Promote `v2.0.0-rc.1` to the first stable v2 release. The SDK and CLI implementation is unchanged from the candidate. See the [v2.0.0 release notes](docs/release-notes/v2.0.0.md) for the full feature and compatibility summary.
+- Installation and migration guides select `v2.0.0`, while retaining local checkout instructions for development.
 
 ## [2.0.0-rc.1] - 2026-10-09
 

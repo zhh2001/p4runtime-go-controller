@@ -1,28 +1,28 @@
 # Migrating from v1 to v2
 
-This guide covers applications using the published v1.1.1 SDK. The v2 development branch changes the module path and several API behaviors. Review the [v2.0.0-rc.1 release notes](release-notes/v2.0.0-rc.1.md) alongside your application's tests.
+This guide covers applications using the published v1.1.1 SDK. v2 changes the module path and several API behaviors. Review the [v2.0.0 release notes](release-notes/v2.0.0.md) alongside your application's tests.
 
 ## Update the module and imports
 
 Use Go 1.26 or newer. The minimum is 1.26.0 and the preferred toolchain is 1.26.9. See [toolchain checks](../CONTRIBUTING.md#go-toolchain-checks).
 
-Before the first v2 release, use a local SDK checkout whose `go.mod` declares `github.com/zhh2001/p4runtime-go-controller/v2`. Run these commands in your application's module, replacing the checkout path:
+Change each SDK import from `github.com/zhh2001/p4runtime-go-controller/<package>` to `github.com/zhh2001/p4runtime-go-controller/v2/<package>`. This includes the SDK `errors` package. Imports of P4Runtime protobufs, gRPC and the standard library keep their existing paths. The repository clone URL also stays unchanged. Your application does not need a `/v2` module suffix merely because it depends on this SDK.
+
+Remove any local v2 replacement and select the stable version from your application's module:
+
+```sh
+go mod edit -dropreplace=github.com/zhh2001/p4runtime-go-controller/v2
+go get github.com/zhh2001/p4runtime-go-controller/v2@v2.0.0
+```
+
+Run `go mod tidy` after updating imports and review `go.mod` and `go.sum`. Select newer published tags explicitly when upgrading. The v1 module may remain if another dependency still uses it. Go supports [both major versions in one application](https://go.dev/blog/v2-go-modules), but their SDK types and error sentinels are distinct. Keep a client's wrappers and SDK error checks on the same major version.
+
+To test local SDK edits, use a checkout whose `go.mod` declares the `/v2` module path. Replace the path below with that checkout:
 
 ```sh
 go mod edit -replace=github.com/zhh2001/p4runtime-go-controller/v2=/path/to/p4runtime-go-controller
 go get github.com/zhh2001/p4runtime-go-controller/v2/client
 ```
-
-Change each SDK import from `github.com/zhh2001/p4runtime-go-controller/<package>` to `github.com/zhh2001/p4runtime-go-controller/v2/<package>`. This includes the SDK `errors` package. Imports of P4Runtime protobufs, gRPC and the standard library keep their existing paths. The repository clone URL also stays unchanged. Your application does not need a `/v2` module suffix merely because it depends on this SDK.
-
-After a v2 tag is published, remove the local replacement and select a published version:
-
-```sh
-go mod edit -dropreplace=github.com/zhh2001/p4runtime-go-controller/v2
-go get github.com/zhh2001/p4runtime-go-controller/v2@latest
-```
-
-Use an exact published v2 tag instead of `@latest` for a reproducible upgrade or a prerelease trial. Run `go mod tidy` after updating imports and review `go.mod` and `go.sum`. The v1 module may remain if another dependency still uses it. Go supports [both major versions in one application](https://go.dev/blog/v2-go-modules), but their SDK types and error sentinels are distinct. Keep a client's wrappers and SDK error checks on the same major version.
 
 ## Replace positional literals and Replica comparisons
 
@@ -145,7 +145,7 @@ Use the per-update codes and your operation's retry policy before resending. Whe
 
 ## Update CLI automation and bundled targets
 
-Install the v2 CLI from the checkout with `go install ./cmd/p4ctl`. Once published, use `go install github.com/zhh2001/p4runtime-go-controller/v2/cmd/p4ctl@latest`, or select an exact tag. The executable name remains `p4ctl`, so check which installation your scripts invoke. Source installations normally report `dev` in `p4ctl version`. Use `go version -m /absolute/path/to/p4ctl` to inspect the module version. Release archives include version metadata supplied by GoReleaser.
+Install the stable CLI with `go install github.com/zhh2001/p4runtime-go-controller/v2/cmd/p4ctl@v2.0.0`. For local development, use `go install ./cmd/p4ctl` from the checkout. The executable name remains `p4ctl`, so check which installation your scripts invoke. Source installations normally report `dev` in `p4ctl version`. Use `go version -m /absolute/path/to/p4ctl` to inspect the module version. Release archives include version metadata supplied by GoReleaser.
 
 Use `--config-file` or `P4CTL_CONFIG_FILE` for CLI settings. Keep `pipeline set --config` for the compiled device configuration:
 
