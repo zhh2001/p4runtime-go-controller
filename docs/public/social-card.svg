@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f6f7fb"/>
+  <rect width="16" height="630" fill="#3451b2"/>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="80" y="102" fill="#3451b2" font-size="30" font-weight="700">p4runtime-go-controller</text>
+    <text x="76" y="245" fill="#202838" font-size="64" font-weight="700">P4Runtime controllers</text>
+    <text x="76" y="326" fill="#3451b2" font-size="72" font-weight="700">in Go</text>
+    <g fill="#ffffff" stroke="#d9deec" stroke-width="2">
+      <rect x="80" y="390" width="172" height="64" rx="12"/>
+      <rect x="274" y="390" width="184" height="64" rx="12"/>
+      <rect x="480" y="390" width="256" height="64" rx="12"/>
+    </g>
+    <g fill="#30394b" font-size="26">
+      <text x="166" y="431" text-anchor="middle">Go SDK</text>
+      <text x="366" y="431" text-anchor="middle">p4ctl CLI</text>
+      <text x="608" y="431" text-anchor="middle">BMv2 examples</text>
+    </g>
+    <text x="80" y="562" fill="#59647a" font-size="24">zhh2001.github.io/p4runtime-go-controller/</text>
+  </g>
+</svg>

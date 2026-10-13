@@ -1,6 +1,7 @@
 export const version = 'v2.0.1'
 export const repository = 'https://github.com/zhh2001/p4runtime-go-controller'
 export const base = '/p4runtime-go-controller/'
+export const siteURL = `https://zhh2001.github.io${base}`
 
 // Source paths are relative to the repository. Page paths are relative to the site.
 export const pages = {

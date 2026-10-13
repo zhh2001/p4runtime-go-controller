@@ -3,7 +3,8 @@ import { existsSync, statSync } from 'node:fs'
 import { cp } from 'node:fs/promises'
 import { dirname, posix, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { base, pages, repository, version } from './site.mjs'
+import { base, pages, repository, siteURL, version } from './site.mjs'
+import { applyMetadata } from './metadata.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const sources = Object.fromEntries(Object.entries(pages).map(([source, page]) => [page, source]))
@@ -101,9 +102,11 @@ export default defineConfig({
   base,
   srcDir: '.vitepress/site',
   cleanUrls: false,
-  sitemap: { hostname: `https://zhh2001.github.io${base}` },
+  sitemap: { hostname: siteURL },
   transformPageData(page) {
-    page.frontmatter.sourceURL = `${repository}/edit/main/${sources[page.relativePath]}`
+    const source = sources[page.relativePath]
+    if (source) page.frontmatter.sourceURL = `${repository}/edit/main/${source}`
+    applyMetadata(page)
   },
   locales: {
     root: { label: 'English', lang: 'en', link: '/' },
@@ -142,7 +145,7 @@ export default defineConfig({
     },
   },
   markdown: { config: repositoryLinks },
-  vite: { plugins: [sourceUpdates()] },
+  vite: { publicDir: resolve(root, 'docs/public'), plugins: [sourceUpdates()] },
   themeConfig: {
     i18nRouting: false,
     nav: [

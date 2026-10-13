@@ -95,7 +95,9 @@ node scripts/check-doc-examples.mjs
 npm --prefix docs run preview
 ```
 
-The build checks internal links, heading anchors and local assets under the project base path. Complete Go programs in the site's Markdown are compiled and vetted without a local SDK replacement. Run BMv2 tests for changes to commands, examples or target behavior. The API reference links to the version declared in `docs/.vitepress/site.mjs`.
+The build checks internal links, heading anchors, local assets, page metadata and sitemap URLs under the project base path. Complete Go programs in the site's Markdown are compiled and vetted without a local SDK replacement. Run BMv2 tests for changes to commands, examples or target behavior. The API reference links to the version declared in `docs/.vitepress/site.mjs`.
+
+Page descriptions and share metadata are defined in `docs/.vitepress/metadata.mjs`. The share image is `docs/public/social-card.png`, rendered at 1200 × 630 from `docs/public/social-card.svg`. Update both files when changing the card. VitePress includes language alternatives in the sitemap for pages with English and Chinese counterparts.
 
 The `docs` workflow builds pull requests. On main, it also deploys to GitHub Pages. Select **GitHub Actions** under the repository's **Settings → Pages → Build and deployment → Source** before its first deployment. The project path is `/p4runtime-go-controller/`.
 
