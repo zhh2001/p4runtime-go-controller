@@ -1,5 +1,0 @@
-User-agent: *
-Allow: /
-Disallow:
-
-Sitemap: https://zhh2001.github.io/p4runtime-go-controller/sitemap.xml
