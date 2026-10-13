@@ -12,6 +12,8 @@
 
 用于编写 P4Runtime 控制器的 Go SDK 和 `p4ctl` CLI。
 
+[文档网站](https://zhh2001.github.io/p4runtime-go-controller/zh/) | [快速上手](https://zhh2001.github.io/p4runtime-go-controller/zh/quickstart.html) | [API 参考（英文）](https://zhh2001.github.io/p4runtime-go-controller/api.html) | [English](https://zhh2001.github.io/p4runtime-go-controller/)
+
 - 协议基线为 P4Runtime 1.3.0。可用操作取决于目标实现，集成测试覆盖 BMv2。
 - 使用 gRPC 和官方 P4Runtime protobuf 定义。
 - 通过 `log/slog` 输出结构化日志，应用可通过 gRPC 拦截器接入度量和链路追踪。内置 metrics 接口及适配器仍在规划中。详见 [日志与度量](../observability.md)。
@@ -94,10 +96,10 @@ Meter 写入会按 P4Info 校验类型，速率和突发量必须非负。`EBurs
 
 ## 版本兼容
 
-| 控制器版本  | P4Runtime 规范 |
-| ----------- | -------------- |
-| `v1.x`      | 1.3.0+         |
-| `v2.x`      | 1.3.0+         |
+| 控制器版本 | P4Runtime 规范 |
+| ---------- | -------------- |
+| `v1.x`     | 1.3.0+         |
+| `v2.x`     | 1.3.0+         |
 
 这里列出的是协议基础版本。可选资源和新字段需要目标支持。PRE 的字节端口要求 P4Runtime 1.4 或更新版本，备份副本要求 1.5 或更新版本。详见 [PRE](../../pre/README.md)。
 

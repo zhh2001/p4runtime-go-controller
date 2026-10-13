@@ -11,6 +11,8 @@
 
 A Go SDK and `p4ctl` CLI for writing P4Runtime controllers.
 
+[Documentation](https://zhh2001.github.io/p4runtime-go-controller/) | [Quickstart](https://zhh2001.github.io/p4runtime-go-controller/quickstart.html) | [API reference](https://zhh2001.github.io/p4runtime-go-controller/api.html) | [简体中文](https://zhh2001.github.io/p4runtime-go-controller/zh/)
+
 - Uses P4Runtime 1.3.0 as its protocol baseline. Available operations depend on the target's implementation. Integration tests cover BMv2.
 - Uses gRPC and the official P4Runtime protobuf definitions.
 - Structured logging through `log/slog` and gRPC interceptor hooks for application metrics and tracing. Built-in metrics and adapters are planned. See [Observability](docs/observability.md).
@@ -85,10 +87,10 @@ See [`examples/`](examples/) for connection, pipeline installation, fixed-entry 
 
 ## P4Runtime Compatibility
 
-| Controller version    | P4Runtime spec |
-| --------------------- | -------------- |
-| `v1.x`                | 1.3.0+         |
-| `v2.x`                | 1.3.0+         |
+| Controller version | P4Runtime spec |
+| ------------------ | -------------- |
+| `v1.x`             | 1.3.0+         |
+| `v2.x`             | 1.3.0+         |
 
 This is the protocol baseline. Optional resources and newer fields require target support. Byte-based PRE ports require P4Runtime 1.4 or later, and backup replicas require 1.5 or later. See [PRE](pre/README.md).
 
