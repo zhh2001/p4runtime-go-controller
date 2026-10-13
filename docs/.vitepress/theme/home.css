@@ -3,6 +3,11 @@
   white-space: nowrap;
 }
 
+.VPHomeHero .text,
+.VPHomeHero .tagline {
+  max-width: 100%;
+}
+
 @media (max-width: 639px) {
   .VPHomeHero .name {
     font-size: clamp(20px, 7vw, 32px);
