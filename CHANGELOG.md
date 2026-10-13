@@ -8,6 +8,13 @@ Published releases follow the Go 1 source compatibility policy within a major ve
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-10-13
+
+### Changed
+
+- Use the standard Apache License 2.0 text for license detection on pkg.go.dev, retaining the project copyright notice. The SDK and CLI implementation is unchanged from `v2.0.0`. See the [v2.0.1 release notes](docs/release-notes/v2.0.1.md).
+- Installation and migration guides select `v2.0.1`.
+
 ## [2.0.0] - 2026-10-13
 
 ### Changed

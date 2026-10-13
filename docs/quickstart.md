@@ -9,8 +9,8 @@ For an existing v1 application, start with the [v2 migration guide](migration-v2
 Use Go 1.26 or newer. Run the following from your application's Go module. If you are starting a new project, create its directory and run `go mod init example.com/p4-controller` there first:
 
 ```sh
-go get github.com/zhh2001/p4runtime-go-controller/v2@v2.0.0
-go install github.com/zhh2001/p4runtime-go-controller/v2/cmd/p4ctl@v2.0.0
+go get github.com/zhh2001/p4runtime-go-controller/v2@v2.0.1
+go install github.com/zhh2001/p4runtime-go-controller/v2/cmd/p4ctl@v2.0.1
 ```
 
 If your application has a development replacement, remove it with `go mod edit -dropreplace=github.com/zhh2001/p4runtime-go-controller/v2` before fetching the published version. The v1 module path continues to select v1 releases.
@@ -39,7 +39,7 @@ Get the repository checkout matching the installed SDK:
 ```sh
 git clone https://github.com/zhh2001/p4runtime-go-controller.git
 cd p4runtime-go-controller
-git checkout v2.0.0
+git checkout v2.0.1
 ```
 
 Start the local BMv2 target. The script compiles a matching L2 P4Info and device config, then uses device ID 1 and CPU port 255:

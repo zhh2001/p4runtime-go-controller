@@ -23,7 +23,7 @@
 需要 Go 1.26 或更新版本。在应用的 Go 模块目录中运行：
 
 ```sh
-go get github.com/zhh2001/p4runtime-go-controller/v2@v2.0.0
+go get github.com/zhh2001/p4runtime-go-controller/v2@v2.0.1
 ```
 
 CLI 安装及本地开发方式见 [快速上手](../quickstart.md#1-install)。

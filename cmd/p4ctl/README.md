@@ -7,7 +7,7 @@ Reference CLI built on top of `p4runtime-go-controller`. Dogfood for the SDK and
 Use Go 1.26 or newer. Install the stable CLI:
 
 ```sh
-go install github.com/zhh2001/p4runtime-go-controller/v2/cmd/p4ctl@v2.0.0
+go install github.com/zhh2001/p4runtime-go-controller/v2/cmd/p4ctl@v2.0.1
 ```
 
 For local development, run this from the repository root:

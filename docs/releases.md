@@ -12,11 +12,15 @@ Use a published v1 tag when an application needs the existing v1 API. `@latest` 
 
 Applications upgrading from v1.1.1 should follow the [v2 migration guide](migration-v2.md), including source changes, behavior checks and CLI automation.
 
+## v2.0.1
+
+`v2.0.1`, dated 2026-10-13, uses the standard Apache License 2.0 text for automated license detection. The project copyright notice is retained, and the SDK and CLI implementation is unchanged from `v2.0.0`. See the [patch release notes](release-notes/v2.0.1.md).
+
+Commit the prepared files before creating the tag. Review the draft assets and use the prepared notes as the public release body. Publish this version as a stable release and mark it Latest. Security maintenance remains on the v2.0 line, as established by the published candidate.
+
 ## v2.0.0
 
 `v2.0.0` is the first stable v2 release, dated 2026-10-13. It promotes `v2.0.0-rc.1` without SDK or CLI implementation changes. Its [release notes](release-notes/v2.0.0.md) cover compatibility, SDK and CLI changes, installation and target support. CHANGELOG retains the candidate's history and Unreleased for later changes.
-
-Commit the prepared files before creating the tag. Review the draft assets and use the prepared notes as the public release body. Publish this version as a stable release and mark it Latest. Security maintenance remains on the v2.0 line, as established by the published candidate.
 
 ## Release preparation
 
@@ -41,10 +45,10 @@ The snapshot command builds local artifacts without publishing a release. Its ve
 To check the selected version's archive names and CLI version before its tag exists, run this command in a disposable checkout:
 
 ```sh
-GORELEASER_CURRENT_TAG=v2.0.0 \
-GORELEASER_PREVIOUS_TAG=v2.0.0-rc.1 \
+GORELEASER_CURRENT_TAG=v2.0.1 \
+GORELEASER_PREVIOUS_TAG=v2.0.0 \
 goreleaser release --clean --skip=validate,publish,sign \
-    --release-notes docs/release-notes/v2.0.0.md
+    --release-notes docs/release-notes/v2.0.1.md
 ```
 
 The environment selects the version locally, and the notes file replaces generated commit notes. The command creates local artifacts without creating a tag or uploading a release. It skips tag validation and signing to rehearse an unpublished version. Run the regular preparation checks before creating the real tag. Upload permissions and GitHub OIDC signing are checked by the tagged workflow.

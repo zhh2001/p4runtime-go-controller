@@ -22,7 +22,7 @@ A production-grade Go SDK for writing P4Runtime controllers.
 Requires Go 1.26 or newer. Run this command from your application's Go module:
 
 ```sh
-go get github.com/zhh2001/p4runtime-go-controller/v2@v2.0.0
+go get github.com/zhh2001/p4runtime-go-controller/v2@v2.0.1
 ```
 
 See the [Quickstart](docs/quickstart.md#1-install) for CLI installation and local development.
