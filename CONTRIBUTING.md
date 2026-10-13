@@ -101,6 +101,8 @@ Page descriptions and share metadata are defined in `docs/.vitepress/metadata.mj
 
 Document typography is defined in `docs/.vitepress/theme/typography.css`. Body text uses Times New Roman and SimSun from the reader's system, with Songti SC and Noto Serif fallbacks. Paragraphs use an 18px font size and 1.8 line spacing. The home pages, headings, navigation and code keep the default theme's font families. The home page project name uses responsive sizing in `docs/.vitepress/theme/home.css` to stay on one line. Check English and Chinese pages on desktop and mobile when adjusting these styles.
 
+Navigation styles are defined in `docs/.vitepress/theme/navigation.css`. On Chinese pages between 768px and 959px, the search button hides its keyboard shortcut hint to leave room for the navigation links.
+
 The `docs` workflow builds pull requests. On main, it also deploys to GitHub Pages. Select **GitHub Actions** under the repository's **Settings → Pages → Build and deployment → Source** before its first deployment. The project path is `/p4runtime-go-controller/`.
 
 ## Workflow

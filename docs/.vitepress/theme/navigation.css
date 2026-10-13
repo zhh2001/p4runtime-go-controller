@@ -1,0 +1,5 @@
+@media (min-width: 768px) and (max-width: 959px) {
+  html[lang='zh-CN'] .VPNavBar .DocSearch-Button-Keys {
+    display: none;
+  }
+}

@@ -30,5 +30,3 @@ Use Go 1.26 or newer. The [quickstart](quickstart.md) covers installing v2.0.1, 
 ## Protocol and target support
 
 The SDK's protocol baseline is P4Runtime 1.3.0. Optional resources and newer fields depend on the target. BMv2 is used for integration testing. See [target support](target-support.md) for the tested paths and target-specific limits.
-
-The project is licensed under [Apache 2.0](../LICENSE).
