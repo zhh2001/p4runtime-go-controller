@@ -41,3 +41,10 @@ Thumbs.db
 
 # Generated docs (optional regen)
 /docs/api-reference.md.bak
+
+# Documentation site
+/docs/node_modules/
+/docs/.vitepress/cache/
+/docs/.vitepress/dist/
+/docs/.vitepress/site/
+/docs/.vitepress/.temp/

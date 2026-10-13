@@ -1,0 +1,20 @@
+{
+  "name": "p4runtime-go-controller-docs",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node .vitepress/prepare.mjs && vitepress dev",
+    "build": "node .vitepress/prepare.mjs && vitepress build && node .vitepress/check.mjs",
+    "preview": "vitepress preview",
+    "check": "node .vitepress/check.mjs"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
+  },
+  "overrides": {
+    "vite": "6.4.3"
+  }
+}

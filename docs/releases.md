@@ -16,7 +16,7 @@ Applications upgrading from v1.1.1 should follow the [v2 migration guide](migrat
 
 `v2.0.1`, dated 2026-10-13, uses the standard Apache License 2.0 text for automated license detection. The project copyright notice is retained, and the SDK and CLI implementation is unchanged from `v2.0.0`. See the [patch release notes](release-notes/v2.0.1.md).
 
-Commit the prepared files before creating the tag. Review the draft assets and use the prepared notes as the public release body. Publish this version as a stable release and mark it Latest. Security maintenance remains on the v2.0 line, as established by the published candidate.
+The stable release is published. Security maintenance remains on the v2.0 line, as established by the published candidate.
 
 ## v2.0.0
 

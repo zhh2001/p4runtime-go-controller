@@ -10,10 +10,10 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](../../LICENSE)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://www.conventionalcommits.org)
 
-面向 P4Runtime 控制器的生产级 Go SDK。
+用于编写 P4Runtime 控制器的 Go SDK 和 `p4ctl` CLI。
 
-- 兼容任意 P4Runtime 1.3.0+ 目标设备（BMv2、Stratum、基于 Tofino 的交换机、自定义 ASIC 代理等）。
-- 除了 `google.golang.org/grpc`、`google.golang.org/protobuf` 和官方 P4Runtime proto stubs，核心包无额外硬依赖。
+- 协议基线为 P4Runtime 1.3.0。可用操作取决于目标实现，集成测试覆盖 BMv2。
+- 使用 gRPC 和官方 P4Runtime protobuf 定义。
 - 通过 `log/slog` 输出结构化日志，应用可通过 gRPC 拦截器接入度量和链路追踪。内置 metrics 接口及适配器仍在规划中。详见 [日志与度量](../observability.md)。
 
 > 已发布版本按 [Go 1 兼容性规则](https://go.dev/doc/go1compat) 保持同一主版本内的源码兼容。v2 与 `v1.1.1` 不保持源码兼容。详见 [CHANGELOG](../../CHANGELOG.md) 和 [发布指南](../releases.md)。
@@ -64,7 +64,7 @@ func main() {
 }
 ```
 
-更多端到端示例见 [`examples/`](../../examples) 目录，涵盖连接、管线下发、L2 学习交换机、Packet I/O 以及计数器读取。
+更多示例见 [`examples/`](../../examples) 目录，涵盖连接、管线安装、固定表项 L2 转发、Packet I/O 和计数器读取。
 
 Counter、Meter 和 Register 的读取接口只用 `-1` 表示读取整个数组，写入必须指定非负索引。普通索引会在发送请求前按 P4Info 的数组大小校验。声明了 `index_type_name` 的索引由目标在转换后检查，SDK 保留其非负原值。
 
@@ -100,6 +100,8 @@ Meter 写入会按 P4Info 校验类型，速率和突发量必须非负。`EBurs
 | `v2.x`      | 1.3.0+         |
 
 这里列出的是协议基础版本。可选资源和新字段需要目标支持。PRE 的字节端口要求 P4Runtime 1.4 或更新版本，备份副本要求 1.5 或更新版本。详见 [PRE](../../pre/README.md)。
+
+BMv2 集成测试覆盖控制面请求和以太网转发。仓库尚未验证 Stratum 和基于 Tofino 的硬件。验证范围及已知 BMv2 限制见 [目标支持说明](../target-support.md)。
 
 ## 文档
 

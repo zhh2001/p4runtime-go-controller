@@ -38,11 +38,11 @@ sequenceDiagram
     T-->>S: MasterArbitrationUpdate(primary=true/false)
     S-->>C: event(primary|backup)
     App->>C: BecomePrimary(ctx)
-    C-->>App: nil | ErrNotPrimary
+    C-->>App: nil | context error | ErrStreamClosed
 
     Note over S,T: Reconnect path
     T--xS: stream disconnected
-    S->>T: Dial + re-arbitrate after backoff
+    S->>T: Reopen StreamChannel + re-arbitrate
 ```
 
 ## Pipeline Push
@@ -55,8 +55,8 @@ sequenceDiagram
     participant P as pipeline.Pipeline
     participant T as P4Runtime target
 
-    App->>P: Load(p4infoBytes, deviceConfigBytes)
-    App->>C: SetPipeline(ctx, P)
+    App->>P: LoadText(p4infoBytes, deviceConfigBytes)
+    App->>C: SetPipeline(ctx, P, options)
     C->>T: SetForwardingPipelineConfig(VERIFY_AND_COMMIT)
     alt target supports VERIFY_AND_COMMIT
         T-->>C: OK
@@ -83,7 +83,7 @@ sequenceDiagram
 
     App->>B: NewBuilder(p, "MyIngress.t_l2").Match(...).Action(...).Build()
     B->>E: validated proto
-    App->>C: Write(ctx, INSERT, E)
+    App->>C: WriteTableEntry(ctx, UpdateInsert, E)
     C->>T: WriteRequest{election_id, updates=[...]}
     T-->>C: WriteResponse | error (with per-update status)
     C-->>App: nil | ErrEntryExists | ErrNotPrimary
@@ -124,7 +124,7 @@ The v2 module path is `github.com/zhh2001/p4runtime-go-controller/v2`. The modul
 
 ### Session ownership
 
-`Client` owns the gRPC connection and stream supervisor. The supervisor reopens StreamChannel and repeats arbitration after a disconnect, using exponential backoff with jitter.
+`Client` owns the gRPC connection and stream supervisor. The supervisor reopens StreamChannel and repeats arbitration after a disconnect. Failed stream creation or arbitration uses exponential backoff with jitter. A stream failure after successful arbitration starts the next attempt immediately.
 
 The context passed to `Dial` bounds connection setup. The session has its own context so it can continue after `Dial` returns. Callers stop the session with `Client.Close` and pass a context to each blocking operation.
 

@@ -9,10 +9,10 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://www.conventionalcommits.org)
 
-A production-grade Go SDK for writing P4Runtime controllers.
+A Go SDK and `p4ctl` CLI for writing P4Runtime controllers.
 
-- Works against any P4Runtime 1.3.0+ target (BMv2, Stratum, Tofino-based switches, custom ASIC agents).
-- Zero hard dependency beyond `google.golang.org/grpc`, `google.golang.org/protobuf`, and the official P4Runtime proto stubs.
+- Uses P4Runtime 1.3.0 as its protocol baseline. Available operations depend on the target's implementation. Integration tests cover BMv2.
+- Uses gRPC and the official P4Runtime protobuf definitions.
 - Structured logging through `log/slog` and gRPC interceptor hooks for application metrics and tracing. Built-in metrics and adapters are planned. See [Observability](docs/observability.md).
 
 > Published releases preserve source compatibility within a major version under the [Go 1 compatibility policy](https://go.dev/doc/go1compat). v2 is not source-compatible with `v1.1.1`. See the [CHANGELOG](CHANGELOG.md) and [release guide](docs/releases.md).
@@ -62,7 +62,7 @@ func main() {
 }
 ```
 
-See [`examples/`](examples/) for full end-to-end walkthroughs, including connection, pipeline push, L2 learning switch, packet I/O, and counter reads.
+See [`examples/`](examples/) for connection, pipeline installation, fixed-entry L2 forwarding, packet I/O and counter reads.
 
 ## Feature Matrix
 
@@ -91,6 +91,8 @@ See [`examples/`](examples/) for full end-to-end walkthroughs, including connect
 | `v2.x`                | 1.3.0+         |
 
 This is the protocol baseline. Optional resources and newer fields require target support. Byte-based PRE ports require P4Runtime 1.4 or later, and backup replicas require 1.5 or later. See [PRE](pre/README.md).
+
+BMv2 integration tests exercise control plane requests and Ethernet forwarding. Stratum and Tofino-based hardware have not been tested in this repository. See [target support](docs/target-support.md) for the validation scope and known BMv2 limits.
 
 ## Documentation
 

@@ -74,6 +74,31 @@ To check an existing reference without rewriting it, run:
 
 The script checks each package page separately, then the index. A missing or outdated file produces a nonzero exit status without rewriting any output. Rendering and checking flags are forwarded to gomarkdoc. The script sets the output paths and file templates. Use gomarkdoc directly for a custom layout.
 
+## Documentation website
+
+Use Node.js 24 or newer. Install the documentation tools and start the local site from the repository root:
+
+```sh
+npm --prefix docs ci
+npm --prefix docs run dev
+```
+
+The site uses VitePress 1.6.4 with Vite 6.4.3 selected through an npm override. Commit `docs/package-lock.json` when updating dependencies. Check both development and production builds after a tool update.
+
+The source remains in the existing Markdown files. `docs/.vitepress/site.mjs` maps each source to its website page. The preparation script copies those files into a generated directory, and the Markdown renderer resolves repository links to website pages or GitHub files. Edit the original source. The development server watches those files and refreshes their generated pages. Restart it after changing the page map.
+
+Build the site, check its links and compile complete Go examples against the published SDK:
+
+```sh
+npm --prefix docs run build
+node scripts/check-doc-examples.mjs
+npm --prefix docs run preview
+```
+
+The build checks internal links, heading anchors and local assets under the project base path. Complete Go programs in the site's Markdown are compiled and vetted without a local SDK replacement. Run BMv2 tests for changes to commands, examples or target behavior. The API reference links to the version declared in `docs/.vitepress/site.mjs`.
+
+The `docs` workflow builds pull requests. On main, it also deploys to GitHub Pages. Select **GitHub Actions** under the repository's **Settings → Pages → Build and deployment → Source** before its first deployment. The project path is `/p4runtime-go-controller/`.
+
 ## Workflow
 
 1. Open an issue before starting non-trivial work so the design can be agreed on first.

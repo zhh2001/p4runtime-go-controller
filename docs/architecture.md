@@ -26,14 +26,14 @@ Dependencies flow top-down. `internal/*` never imports anything higher in the st
 1. `client.Dial` collects options, validates device ID and election ID.
 2. gRPC `NewClient` creates the connection lazily.
 3. An internal context is spun up and the stream supervisor is started with a pointer to the `Client.dial` helper and `Client.receiveHandler`.
-4. `Dial` busy-waits (25 ms ticks) for the supervisor to transition out of `connecting`. On success it returns; on timeout it calls `Close` and surfaces `ErrArbitrationFailed`.
+4. `Dial` checks the supervisor every 25 ms and returns when the state becomes primary or backup. Caller cancellation returns the context error. Its own deadline, arbitration timeout plus two seconds, returns `ErrArbitrationFailed`. Both failure paths close the client.
 
 ## Stream supervisor state machine
 
 ```
-    +-------+   Dialer(ctx) fails    +--------------+
-    | disc. | <--------------------- | connecting   |
-    +---+---+                        +------+-------+
+    +-------+   Dialer(ctx) fails    +-------------+
+    | disc. | <--------------------- | connecting  |
+    +---+---+                        +------+------+
         |                                   |
         | supervisor.Start                  | stream established + arbitrate
         v                                   v
@@ -41,7 +41,7 @@ Dependencies flow top-down. `internal/*` never imports anything higher in the st
     | conn. | ---------------------------> | backup  |
     +---+---+                              +----+----+
         |                                       |
-        | arb status==OK                         | new arbitration w/ OK
+        | arb status==OK                        | new arbitration w/ OK
         v                                       v
     +----------+                           +---------+
     | primary  |  <------------------------+         |
@@ -49,7 +49,7 @@ Dependencies flow top-down. `internal/*` never imports anything higher in the st
           |                                          |
           | transport error                          |
           v                                          |
-      reconnect (exponential backoff)  ------------->+
+      reopen stream and arbitrate      ------------->+
 ```
 
 Failed stream creation and arbitration use backoff of `initial * 2^k` up to `max`, with ±20 % jitter applied to each sleep. An established stream that fails starts the next attempt immediately. Successful arbitration resets the backoff.
