@@ -4,9 +4,11 @@ This document describes the SDK's encoding, table-entry construction and stream 
 
 ## RPC comparison data
 
-The [controller evaluation repository](https://github.com/zhh2001/p4runtime-controller-evaluation) contains the RPC performance dataset for SDK v2.0.1 and five comparison configurations. The first batch provides 1,680 measurement rows across seven parameter points, with scripts that recompute 2,184 metric summaries and 56 paired throughput summaries, including 95% bootstrap intervals.
+The [controller evaluation repository](https://github.com/zhh2001/p4runtime-controller-evaluation) contains the RPC performance dataset for SDK v2.0.1 and five comparison configurations. It provides 1,680 measurement rows across seven parameter points, with scripts that recompute 2,184 metric summaries and 56 paired throughput summaries, including 95% bootstrap intervals.
 
 The runs use BMv2 over loopback on WSL2 with an 8 GiB memory limit and 2 GiB swap. They vary table population, write batch size and worker count. The evaluation repository documents the pinned software versions, workload and CSV units. Its reanalysis needs Python 3.12 and NumPy, without running a switch.
+
+The repository also provides [benchmark runners and setup instructions](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/running-rpc.md). The installer prepares pinned client dependencies and builds the Go drivers and P4 fixture. The launcher supports a short validation of all seven parameter points and a full ten-round run. Each run records request outcomes, full table readbacks, source snapshots and environment information.
 
 ## Micro-benchmarks
 

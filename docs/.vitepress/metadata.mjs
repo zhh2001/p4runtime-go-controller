@@ -22,7 +22,7 @@ const descriptions = {
   'integration.md': 'Run BMv2 integration tests for P4Runtime resources, CLI workflows, packet traffic and the bundled Go examples.',
   'troubleshooting.md': 'Diagnose P4Runtime arbitration, TLS, pipeline installation, write errors, packet metadata and stream shutdown.',
   'observability.md': 'Configure log/slog for connection, arbitration, retry and pipeline logs, and review the planned metrics and tracing scope.',
-  'performance.md': 'Reanalyze BMv2 RPC comparison data, run SDK microbenchmarks and review encoding, builder reuse and stream callbacks.',
+  'performance.md': 'Reanalyze BMv2 RPC comparison data, run the pinned controller workloads and review SDK microbenchmarks, encoding and stream callbacks.',
   'architecture.md': 'Explore SDK layering, connection and stream supervision, dispatch, pipeline fallback, encoding and error handling.',
   'glossary.md': 'Look up P4 and P4Runtime terms, including P4Info, table matches, meters, digests, StreamChannel and canonical bytes.',
   'migration-v2.md': 'Migrate from v1.1.1 to the /v2 module, update Replica usage and check SDK behavior changes and CLI automation.',
