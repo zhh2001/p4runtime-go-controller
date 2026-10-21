@@ -14,3 +14,5 @@ Run the L2 example before the Packet I/O and counter examples. It supplies a fix
 CPU Packet I/O loopback uses port 255 and works through gRPC. Ethernet forwarding to data ports needs bound host interfaces. To obtain nonzero counter values, send traffic matching the L2 entry. The [L2 fixture guide](../examples/testdata/README.md) explains the P4 program, interfaces and packet headers.
 
 For a complete controller that stays connected and receives packets, use the [quickstart](quickstart.md).
+
+The [data-plane evaluation](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/dataplane.md) provides 130 archived Mininet/BMv2 cases covering reactive forwarding, counter collection, application recovery and p4ctl. Its [captures and records](https://github.com/zhh2001/p4runtime-controller-evaluation/tree/main/data/dataplane) include all 520 PCAP files. The offline verifier checks 27,170 received frames, table state, counters, restart phases and explicit PacketOut ports. These cases use a common application around each controller interface.
