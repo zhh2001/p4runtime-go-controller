@@ -27,6 +27,8 @@ The [input-validation archive](https://github.com/zhh2001/p4runtime-controller-e
 
 The archive includes selected requests, complete saved target snapshots, P4Info fixtures and offline verification scripts. Verification checks input coverage, request association, repeated classifications and semantic values. Results distinguish local errors, target errors and inputs outside the selected high-level API.
 
+The [live runner guide](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/running-inputs.md) provides pinned client setup, P4 compilation and smoke, full and Go race modes. Setup checks generated inputs and declarations against the archive. A full run executes 6,984 new trials and verifies recorded requests, classifications and target state. These functional tests use loopback services and owned BMv2 processes without Mininet or root privileges.
+
 ## Known BMv2 and PI limits
 
 The following limits apply to the BMv2 1.15.0-2bdd0b7b and PI 5689c91 build used for local validation:
