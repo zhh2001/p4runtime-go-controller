@@ -64,6 +64,22 @@ The supervisor has a main loop for sends and connection state, plus a receive go
 
 A slow callback delays the next receive, including later packets, arbitration responses and receive errors. The send loop runs separately. Move slow work to a worker pool or an application queue, and decide how to handle a full queue so it does not stall reception. A callback already in progress can outlive its stream, so synchronize shared application state.
 
+## Session and stream comparison
+
+The evaluation repository contains [840 session and stream trials](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/sessions.md) comparing SDK v2.0.1 and Finsy v0.30.0. Each of 28 configurations has 30 repetitions. Recovery and mastership use BMv2. Cancellation, close and slow-consumer tests use a controlled gRPC service. The archive includes original events, request outcomes, RSS samples, 62 statistical summaries and offline verification.
+
+All 180 fault trials recover and verify the final entry. Following a target restart, native session recovery restores arbitration, then the application installs the missing pipeline and writes its own entry. The reported intervals include each client's default retry policy and local observation steps. The [method](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/sessions.md#recovery) separates successful arbitration from verified application state.
+
+![Session recovery times and median confidence intervals](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/sessions/session-recovery.png)
+
+The recovery figure shows individual trials, medians and 95% bootstrap intervals on logarithmic vertical axes. Download [PDF](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/sessions/session-recovery.pdf) or [PNG](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/sessions/session-recovery.png).
+
+The slow-consumer workload emits 300 messages per trial at 500 messages per second. With 10 milliseconds of processing per message, the inline SDK callback processes all 300, while median observation of the following backup notification takes 2,513.842 milliseconds. An application queue of capacity 50 reduces the median to 3.451 milliseconds and processes a median of 108 messages. Both Finsy paths retain its own capacity-50 library queue. The [consumer results](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/sessions.md#slow-consumers) account for all 108,000 emitted IDs across completed processing, library non-delivery and application drops.
+
+![Slow-consumer observation delay and message completion](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/sessions/slow-consumer-tradeoff.png)
+
+Download the consumer figure as [PDF](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/sessions/slow-consumer-tradeoff.pdf) or [PNG](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/sessions/slow-consumer-tradeoff.png). The archive also records local send completion separately from service receipt and final stream status in its [cancellation and close tests](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/sessions.md#cancellation-and-close).
+
 ## Throughput tips
 
 - **Batch writes**. Send multiple updates in one `Client.Write(ctx, opts, updates...)` call to reduce RPC overhead. Account for target limits, atomicity and partial failures when choosing a batch size.
