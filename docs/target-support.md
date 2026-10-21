@@ -21,6 +21,12 @@ The [integration guide](../test/integration/README.md) lists the fixtures, requi
 
 Stratum, Tofino-based hardware and other ASIC targets have not been tested in this repository.
 
+## Input comparison data
+
+The [input-validation archive](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/inputs.md) records 6,984 trials across 382 fixed inputs, six profiles and two repetitions, with controlled-service and BMv2 results kept separately. The corpora cover five table-match types, numerical widths from 1 to 129 bits, resource indices, typed register data, default entries, action scope, indirect references and sparse IDs. Typed registers and translated-index mappings use the controlled service.
+
+The archive includes selected requests, complete saved target snapshots, P4Info fixtures and offline verification scripts. Verification checks input coverage, request association, repeated classifications and semantic values. Results distinguish local errors, target errors and inputs outside the selected high-level API.
+
 ## Known BMv2 and PI limits
 
 The following limits apply to the BMv2 1.15.0-2bdd0b7b and PI 5689c91 build used for local validation:
@@ -30,5 +36,7 @@ The following limits apply to the BMv2 1.15.0-2bdd0b7b and PI 5689c91 build used
 - Byte-based PRE ports and backup replicas require newer target support. Live replication fixtures use legacy port fields.
 - Named read roles can be accepted without enforcing role scopes. Controlled-server tests check that the SDK sends the configured role and preserves target rejection.
 - Reconciliation of the bundled L2 pipeline's indirect counters can fail because PI restores counters using INSERT. See [pipeline troubleshooting](troubleshooting.md#setforwardingpipelineconfig-keeps-failing).
+- Read can return an explicit full-range RANGE for an omitted wildcard match. The archived input verifier compares its wildcard semantics.
+- An EXACT MODIFY with `priority=-1`, or a default MODIFY with `idle_timeout_ns=1`, can be accepted. The recorded readbacks set priority or TTL to zero. The [table-constraint results](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/inputs.md#table-entry-constraints) retain the requests, state changes and per-item status differences.
 
 See the digest section of the [integration guide](../test/integration/README.md) for the target's acknowledgement lifetime behavior. SDK tests cover named subscriptions, cancellation and ACK validation independently.
