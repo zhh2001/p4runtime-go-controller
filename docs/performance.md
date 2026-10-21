@@ -12,6 +12,16 @@ The repository also provides [benchmark runners and setup instructions](https://
 
 The [original RPC trace archives](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/rpc-traces.md) cover all 2,940 measurement and warmup phases. Download them by parameter point from the evaluation repository's Release assets. The verifier reads the compressed records, checks complete table state and recomputes all 1,680 measurement rows. This verification needs Python and the pinned analysis packages.
 
+## Local construction comparison
+
+The evaluation repository also contains [270 local construction measurements](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/construction.md). Twenty conditions compare complete table-entry construction across the six profiles, including new and reused objects. Seven conditions measure separate SDK public operations. Each condition has ten independent rounds on one fixed logical CPU.
+
+The archive includes benchmark outputs, input fixtures, 65 metric summaries and 16 paired summaries. Its Python reanalysis checks the outputs, reconstructs per-round measurements and recomputes the summaries and 95% bootstrap intervals. These measurements cover offline entry construction. The RPC comparison above measures the complete call path.
+
+![Mean local table-entry construction time and 95% bootstrap intervals](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/construction/construction-time.png)
+
+The horizontal axes show microseconds per entry on a logarithmic scale. Reusing the SDK Builder lowers its local construction time in these workloads. The raw Go and legacy construction paths have lower measured local times. The [method](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/construction.md) explains input representations, ownership and reuse. Download the figure as [PDF](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/construction/construction-time.pdf) or [PNG](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/construction/construction-time.png).
+
 ## Micro-benchmarks
 
 Run the library's benchmarks with:
