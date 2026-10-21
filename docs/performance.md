@@ -18,6 +18,8 @@ The evaluation repository also contains [270 local construction measurements](ht
 
 The archive includes benchmark outputs, input fixtures, 65 metric summaries and 16 paired summaries. Its Python reanalysis checks the outputs, reconstructs per-round measurements and recomputes the summaries and 95% bootstrap intervals. These measurements cover offline entry construction. The RPC comparison above measures the complete call path.
 
+The [construction runners](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/running-construction.md) install the pinned clients, validate 5,120 complete entries and result ownership, and run Go race and vet checks. They support a short run of all 27 conditions and a full ten-round comparison with independent statistical checks. This workload needs Python 3.12, Go and a C compiler on Linux x86_64 and runs without a switch or root privileges.
+
 ![Mean local table-entry construction time and 95% bootstrap intervals](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/construction/construction-time.png)
 
 The horizontal axes show microseconds per entry on a logarithmic scale. Reusing the SDK Builder lowers its local construction time in these workloads. The raw Go and legacy construction paths have lower measured local times. The [method](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/construction.md) explains input representations, ownership and reuse. Download the figure as [PDF](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/construction/construction-time.pdf) or [PNG](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/construction/construction-time.png).
