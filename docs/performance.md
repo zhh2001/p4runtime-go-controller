@@ -80,6 +80,8 @@ The slow-consumer workload emits 300 messages per trial at 500 messages per seco
 
 Download the consumer figure as [PDF](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/sessions/slow-consumer-tradeoff.pdf) or [PNG](https://raw.githubusercontent.com/zhh2001/p4runtime-controller-evaluation/main/figures/sessions/slow-consumer-tradeoff.png). The archive also records local send completion separately from service receipt and final stream status in its [cancellation and close tests](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/sessions.md#cancellation-and-close).
 
+The [session and stream runners](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/running-sessions.md) provide pinned setup, a 28-case smoke run, a 16-case SDK race run and the full 840-trial comparison. Groups can be selected individually. Each run records sources, requests, target state and process exits, then applies the archived evidence checks and independent decoding. Full runs also recompute the statistical summaries. Recovery and mastership use owned BMv2 processes, while cancellation and consumer groups use controlled gRPC services.
+
 ## Throughput tips
 
 - **Batch writes**. Send multiple updates in one `Client.Write(ctx, opts, updates...)` call to reduce RPC overhead. Account for target limits, atomicity and partial failures when choosing a batch size.
