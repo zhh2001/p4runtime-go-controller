@@ -4,7 +4,7 @@ This document describes the SDK's encoding, table-entry construction and stream 
 
 The [evaluation reproduction guide](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/reproducing-results.md) collects the data, offline verification commands and live execution guides for RPC performance, local construction, input validation, sessions and streams, batch retries and data-plane cases. It identifies the analysis dependencies and the separate RPC trace downloads.
 
-The [evaluation-v1 release preparation](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/releases.md) records the fixed source snapshot, package contents and verification commands.
+The [evaluation-v1 Release](https://github.com/zhh2001/p4runtime-controller-evaluation/releases/tag/evaluation-v1) provides a fixed archive of all six datasets, analysis scripts and live runners, with a file manifest and SHA-256 checksums. The [packaging guide](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/releases.md) describes how to verify the download.
 
 ## RPC comparison data
 
