@@ -71,6 +71,10 @@ if errors.As(err, &writeErr) {
 
 `Updates` includes successful results at their original indices. It is nil for RPC-wide errors or incomplete or malformed details. `status.FromError(err)` still exposes the original response. For `CONTINUE_ON_ERROR`, successful updates may already be stored. For rollback or atomic writes, account for that atomicity when deciding what to retry.
 
+When retrying a subset, retain each operation's index in the original batch. For example, results `[OK, UNAVAILABLE, OK, RESOURCE_EXHAUSTED, OK]` identify original indexes `[1, 3]` as failures. If their retry returns `[OK, UNAVAILABLE]`, the remaining operation is original index 3. The SDK reports each call's results and leaves the retry policy to the application. An RPC-wide error or incomplete details require checking target state before deciding which operations still need to be applied.
+
+The [batch-retry evaluation](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/retries.md) provides 192 archived application trials on a controlled service and BMv2, including conflict reconciliation and partially applied RPC-wide failures. Its two decoders check retry indexes, successful operations and final state. The [records](https://github.com/zhh2001/p4runtime-controller-evaluation/tree/main/data/retries) and [offline verifier](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/scripts/verify_retries.py) cover 334 Writes and 112 application Reads.
+
 A `PermissionDenied` response can also indicate a role restriction. Only RPC-wide messages explicitly identifying lost primary status map to `ErrNotPrimary`.
 
 ## Leading zeros in match fields
