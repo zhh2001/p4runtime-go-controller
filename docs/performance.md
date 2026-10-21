@@ -10,6 +10,8 @@ The runs use BMv2 over loopback on WSL2 with an 8 GiB memory limit and 2 GiB swa
 
 The repository also provides [benchmark runners and setup instructions](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/running-rpc.md). The installer prepares pinned client dependencies and builds the Go drivers and P4 fixture. The launcher supports a short validation of all seven parameter points and a full ten-round run. Each run records request outcomes, full table readbacks, source snapshots and environment information.
 
+The [original RPC trace archives](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/rpc-traces.md) cover all 2,940 measurement and warmup phases. Download them by parameter point from the evaluation repository's Release assets. The verifier reads the compressed records, checks complete table state and recomputes all 1,680 measurement rows. This verification needs Python and the pinned analysis packages.
+
 ## Micro-benchmarks
 
 Run the library's benchmarks with:
