@@ -75,6 +75,8 @@ When retrying a subset, retain each operation's index in the original batch. For
 
 The [batch-retry evaluation](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/retries.md) provides 192 archived application trials on a controlled service and BMv2, including conflict reconciliation and partially applied RPC-wide failures. Its two decoders check retry indexes, successful operations and final state. The [records](https://github.com/zhh2001/p4runtime-controller-evaluation/tree/main/data/retries) and [offline verifier](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/scripts/verify_retries.py) cover 334 Writes and 112 application Reads.
 
+The [retry execution guide](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/running-retries.md) provides live runners for the same cases. It includes a 30-trial smoke run, 32 Go race trials and the full 192-trial plan, with independent request and state verification.
+
 A `PermissionDenied` response can also indicate a role restriction. Only RPC-wide messages explicitly identifying lost primary status map to `ErrNotPrimary`.
 
 ## Leading zeros in match fields
