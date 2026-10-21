@@ -2,6 +2,8 @@
 
 This document describes the SDK's encoding, table-entry construction and stream dispatch paths, along with the benchmarks used to measure them.
 
+The [evaluation reproduction guide](https://github.com/zhh2001/p4runtime-controller-evaluation/blob/main/docs/reproducing-results.md) collects the data, offline verification commands and live execution guides for RPC performance, local construction, input validation, sessions and streams, batch retries and data-plane cases. It identifies the analysis dependencies and the separate RPC trace downloads.
+
 ## RPC comparison data
 
 The [controller evaluation repository](https://github.com/zhh2001/p4runtime-controller-evaluation) contains the RPC performance dataset for SDK v2.0.1 and five comparison configurations. It provides 1,680 measurement rows across seven parameter points, with scripts that recompute 2,184 metric summaries and 56 paired throughput summaries, including 95% bootstrap intervals.
